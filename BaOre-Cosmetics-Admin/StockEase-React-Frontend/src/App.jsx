@@ -242,6 +242,18 @@ export default function App() {
     setToast("Account added.");
   }
 
+  function removeAccount(user) {
+    if (!isAdmin || user.id === currentUser?.id) return;
+    const adminsLeft = users.filter((account) => account.role === "admin" && account.id !== user.id).length;
+    if (user.role === "admin" && adminsLeft === 0) {
+      setToast("Keep at least one admin account.");
+      return;
+    }
+    if (!window.confirm(`Remove ${user.name}?`)) return;
+    setUsers((prev) => prev.filter((account) => account.id !== user.id));
+    setToast("Account removed.");
+  }
+
   function openAddProduct() {
     if (!isAdmin) return;
     setEditId(null);
@@ -430,23 +442,6 @@ export default function App() {
 
         <div className="sidebar-spacer" />
 
-        <div className="side-promo">
-          <div className="promo-spark"><Sparkles size={18} /></div>
-          {isAdmin ? (
-            <>
-              <strong>A little sparkle goes a long way.</strong>
-              <p>Keep your beauty stock blooming.</p>
-              <button type="button" onClick={openAddProduct}>Add a product <Plus size={14} /></button>
-            </>
-          ) : (
-            <>
-              <strong>Keep the shelf honest.</strong>
-              <p>Record sales and returns as they happen.</p>
-              <button type="button" onClick={() => goTo("inventory")}>Open floor stock <ChevronRight size={14} /></button>
-            </>
-          )}
-        </div>
-
         <div className="admin-profile">
           <div className="admin-avatar">{(currentUser.name || "U").charAt(0).toUpperCase()}</div>
           <div>
@@ -481,22 +476,6 @@ export default function App() {
           {isAdmin && <button type="button" className="primary-btn" onClick={openAddProduct}><Plus size={16} /> Add product</button>}
         </section>
 
-        <section className="hero-banner">
-          <div className="hero-copy">
-            <div className="hero-kicker">{isAdmin ? "The Ba'Oré edit" : "On the floor"}</div>
-            <h2>{isAdmin ? "Beauty begins with being stocked." : "The shelf is ready when you are."}</h2>
-            <p>{isAdmin ? "Keep your stock, customer stories, and product shelves aligned in one chic workspace." : "See what’s in stock, spot shades running low, and record sales or returns."}</p>
-            <button type="button" onClick={() => goTo("inventory")}>{isAdmin ? "Explore inventory" : "Open floor stock"} <ChevronRight size={15} /></button>
-          </div>
-          <div className="hero-art" aria-hidden="true">
-            <div className="orb orb-one" />
-            <div className="orb orb-two" />
-            <div className="glow-bubble" />
-            <div className="jar jar-one"><span>BA'ORÉ</span></div>
-            <div className="jar jar-two"><span>GLOW</span></div>
-          </div>
-        </section>
-
         <section className={`stats-grid ${isAdmin ? "" : "cols-3"}`}>
           <article className="stat-card">
             <div className="stat-label">Total products <span className="icon-box lavender"><Package size={18} /></span></div>
@@ -529,7 +508,6 @@ export default function App() {
                 <h3>Recently in your collection</h3>
                 <p>A quick look at your beauty shelf.</p>
               </div>
-              <button type="button" className="text-link" onClick={() => goTo("inventory")}>{isAdmin ? "View inventory" : "Open floor stock"} <ChevronRight size={14} /></button>
             </div>
             <div className="list-stack">
               {items.slice(0, 5).map((item, index) => (
@@ -762,7 +740,7 @@ export default function App() {
               <div>
                 <div className="eyebrow"><Sparkles size={12} /> store accounts</div>
                 <h3>Team</h3>
-                <p>Add an account and choose Admin or User access.</p>
+                <p>Add or remove an account, and choose Admin or User access.</p>
               </div>
               <button type="button" className="primary-btn" onClick={openAddAccount}><Plus size={16} /> Add account</button>
             </div>
@@ -775,6 +753,9 @@ export default function App() {
                     <span>{user.email} · {user.username}</span>
                   </div>
                   <span className={user.role === "admin" ? "stock-pill ok" : "category-tag"}>{roleLabel(user.role)}</span>
+                  {user.id !== currentUser.id && (
+                    <button type="button" className="danger icon-btn" title="Remove account" aria-label={`Remove ${user.name}`} onClick={() => removeAccount(user)}><Trash2 size={15} /></button>
+                  )}
                 </div>
               ))}
             </div>

@@ -367,6 +367,10 @@ textarea { resize: vertical; }
   width: 32px; height: 32px; border-radius: 10px; border: 1px solid var(--line); background: #fff; display: grid; place-items: center; color: var(--text);
 }
 .action-group .danger { color: var(--danger); }
+.icon-btn {
+  width: 32px; height: 32px; border-radius: 10px; border: 1px solid var(--line); background: #fff; display: grid; place-items: center; color: var(--text);
+}
+.icon-btn.danger { color: var(--danger); }
 .empty-state {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
   padding: 26px 18px 18px; color: var(--muted);
