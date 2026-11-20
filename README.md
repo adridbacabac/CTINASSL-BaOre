@@ -1,4 +1,4 @@
-# CTINASSL - Ba'Oré
+# CTINASSL - Ba'Oré Cosmetics
 
 Members: 
 - Bacabac, Adrid T.
