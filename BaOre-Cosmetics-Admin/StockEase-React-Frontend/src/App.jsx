@@ -23,82 +23,11 @@ import {
   ClipboardList,
 } from "lucide-react";
 
-const starterItems = [
-  { id: 1, name: "Velvet Matte Lipstick", category: "Lips", sku: "LIP-001", quantity: 28, price: 399, brand: "Ba'Oré", shade: "Rosewood" },
-  { id: 2, name: "Dewy Glow Foundation", category: "Face", sku: "FAC-002", quantity: 16, price: 699, brand: "Ba'Oré", shade: "Warm Beige" },
-  { id: 3, name: "Cloud Nine Blush", category: "Cheeks", sku: "CHK-003", quantity: 4, price: 349, brand: "Ba'Oré", shade: "Soft Peach" },
-  { id: 4, name: "Lash Muse Mascara", category: "Eyes", sku: "EYE-004", quantity: 22, price: 429, brand: "Ba'Oré", shade: "Jet Black" },
-  { id: 5, name: "Silk Touch Setting Powder", category: "Face", sku: "FAC-005", quantity: 3, price: 499, brand: "Ba'Oré", shade: "Translucent" },
-  { id: 6, name: "Petal Shine Lip Gloss", category: "Lips", sku: "LIP-006", quantity: 35, price: 299, brand: "Ba'Oré", shade: "Pink Quartz" },
-  { id: 7, name: "Starlit Eyeshadow Palette", category: "Eyes", sku: "EYE-007", quantity: 12, price: 899, brand: "Ba'Oré", shade: "Moonlight" },
-  { id: 8, name: "Sculpt & Define Contour", category: "Cheeks", sku: "CHK-008", quantity: 7, price: 549, brand: "Ba'Oré", shade: "Toffee" },
-];
-
-const categories = ["Face", "Eyes", "Lips", "Cheeks", "Tools & Brushes", "Skincare"];
-const emptyProduct = { name: "", category: "Face", sku: "", quantity: "", price: "", brand: "Ba'Oré", shade: "" };
-const emptyAccount = { name: "", email: "", username: "", password: "", role: "user" };
-const LOW_STOCK = 5;
-const money = (value) => new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 }).format(Number(value) || 0);
-
-const starterUsers = [
-  { id: "admin-1", name: "Admin One", email: "admin@baore.com", username: "admin", password: "baore-admin", role: "admin" },
-  { id: "user-1", name: "User One", email: "user@baore.com", username: "employee", password: "baore-staff", role: "user" },
-];
-
-const employeeMovementTypes = [
-  { id: "stock_out", label: "Stock out" },
-  { id: "stock_in", label: "Stock in" },
-];
-
-const adminMovementTypes = [
-  { id: "restock", label: "Restock" },
-  { id: "sale", label: "Sale" },
-  { id: "adjustment", label: "Adjustment" },
-  { id: "return", label: "Return" },
-];
-
-function stockStatus(quantity) {
-  const qty = Number(quantity);
-  if (qty <= 0) return { label: "Out of stock", className: "out" };
-  if (qty <= LOW_STOCK) return { label: "Low stock", className: "low" };
-  return { label: "In stock", className: "ok" };
-}
-
-function movementDelta(movement) {
-  if (movement.type === "sale" || movement.type === "stock_out") return -Number(movement.quantity);
-  if (movement.type === "restock" || movement.type === "return" || movement.type === "stock_in") return Number(movement.quantity);
-  return movement.direction === "out" ? -Number(movement.quantity) : Number(movement.quantity);
-}
-
-function movementLabel(type) {
-  const labels = { restock: "Restock", sale: "Sale", adjustment: "Adjustment", return: "Return", stock_in: "Stock in", stock_out: "Stock out" };
-  return labels[type] || type;
-}
-
-function roleLabel(role) {
-  return role === "admin" ? "Admin" : "User";
-}
-
-function readStorage(key, fallback) {
-  try {
-    const stored = localStorage.getItem(key);
-    if (!stored) {
-      localStorage.setItem(key, JSON.stringify(fallback));
-      return fallback;
-    }
-    return JSON.parse(stored);
-  } catch {
-    return fallback;
-  }
-}
-
-function readSession() {
-  try {
-    return JSON.parse(localStorage.getItem("baore-session") || "null");
-  } catch {
-    return null;
-  }
-}
+import { starterItems, starterUsers } from "./data/starterData";
+import { categories, LOW_STOCK, emptyProduct, emptyAccount, employeeMovementTypes, adminMovementTypes } from "./lib/constants";
+import { money } from "./lib/format";
+import { stockStatus, movementDelta, movementLabel, roleLabel } from "./lib/stock";
+import { readStorage, readSession } from "./lib/storage";
 
 export default function App() {
   const [items, setItems] = useState(() => readStorage("baore-items", starterItems));
