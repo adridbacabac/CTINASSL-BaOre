@@ -25,7 +25,7 @@ export function AccountModal({ accountModal, setAccountModal, accountForm, setAc
                 <label>
                   Access
                   <select value={accountForm.role} onChange={(e) => setAccountForm({ ...accountForm, role: e.target.value })}>
-                    <option value="user">User</option>
+                    <option value="user">Employee</option>
                     <option value="admin">Admin</option>
                   </select>
                 </label>

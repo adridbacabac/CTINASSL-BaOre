@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { loginRequest, logoutRequest, rememberSession, restoreSession, retrySession } from "../lib/api";
 import { starterItems, starterUsers } from "../data/starterData";
 import { LOW_STOCK, emptyProduct, emptyAccount, employeeMovementTypes, adminMovementTypes } from "../lib/constants";
 import { movementDelta } from "../lib/stock";
-import { readStorage, readSession } from "../lib/storage";
+import { readStorage } from "../lib/storage";
 
 const AppStateContext = createContext(null);
 
@@ -21,7 +22,10 @@ export function AppStateProvider({ children }) {
     return list;
   });
   const [movements, setMovements] = useState(() => readStorage("baore-movements", []));
-  const [sessionUserId, setSessionUserId] = useState(readSession);
+  const [authStatus, setAuthStatus] = useState("loading");
+  const [currentUser, setCurrentUser] = useState(null);
+  const [sessionError, setSessionError] = useState("");
+  const [loginPending, setLoginPending] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
@@ -37,7 +41,6 @@ export function AppStateProvider({ children }) {
   const [toast, setToast] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const currentUser = users.find((user) => user.id === sessionUserId) || null;
   const isAdmin = currentUser?.role === "admin";
   const displayName = currentUser?.name || "there";
   const movementTypes = isAdmin ? adminMovementTypes : employeeMovementTypes;
@@ -55,11 +58,16 @@ export function AppStateProvider({ children }) {
   }, [movements]);
 
   useEffect(() => {
-    if (sessionUserId && !users.some((user) => user.id === sessionUserId)) {
-      setSessionUserId(null);
-      localStorage.removeItem("baore-session");
-    }
-  }, [sessionUserId, users]);
+    localStorage.removeItem("baore-session");
+    let active = true;
+    restoreSession().then((result) => {
+      if (!active) return;
+      applySession(result);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!toast) return;
@@ -67,8 +75,37 @@ export function AppStateProvider({ children }) {
     return () => clearTimeout(timer);
   }, [toast]);
 
+  function applySession(result) {
+    if (result.status === "authenticated" && result.user) {
+      setCurrentUser(result.user);
+      setAuthStatus("authenticated");
+      setSessionError("");
+      return;
+    }
+    if (result.status === "unauthenticated") {
+      setCurrentUser(null);
+      setAuthStatus("unauthenticated");
+      setSessionError("");
+      return;
+    }
+    setAuthStatus("error");
+    setSessionError(result.message || "The store server could not be reached. Try again.");
+  }
+
+  function sameAccount(user) {
+    if (!currentUser || !user) return false;
+    if (user.id === currentUser.id) return true;
+    return String(user.username || "").toLowerCase() === String(currentUser.username || "").toLowerCase();
+  }
+
   const lowStockItems = items.filter((item) => Number(item.quantity) <= LOW_STOCK);
-  const myMovements = movements.filter((movement) => movement.userId === currentUser?.id);
+  const ownMovementIds = new Set(currentUser ? [currentUser.id] : []);
+  if (currentUser) {
+    users.forEach((user) => {
+      if (sameAccount(user)) ownMovementIds.add(user.id);
+    });
+  }
+  const myMovements = movements.filter((movement) => ownMovementIds.has(movement.userId));
   const totalUnits = items.reduce((sum, item) => sum + Number(item.quantity), 0);
   const inventoryValue = items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.price), 0);
 
@@ -85,24 +122,41 @@ export function AppStateProvider({ children }) {
     setMobileOpen(false);
   }
 
-  function handleLogin(event) {
+  async function handleLogin(event) {
     event.preventDefault();
-    const match = users.find((user) => user.username.toLowerCase() === username.trim().toLowerCase() && user.password === password);
-    if (!match) {
-      setLoginError("Those sign-in details don’t match a store account.");
-      return;
-    }
+    if (loginPending) return;
+    setLoginPending(true);
     setLoginError("");
-    setSessionUserId(match.id);
-    localStorage.setItem("baore-session", JSON.stringify(match.id));
-    setPassword("");
-    setToast(`Welcome back, ${match.name}.`);
-    navigate("/dashboard", { replace: true });
+    try {
+      const result = await loginRequest(username, password);
+      if (!result.ok) {
+        setLoginError(result.error);
+        return;
+      }
+      rememberSession("authenticated", result.user);
+      applySession({ status: "authenticated", user: result.user });
+      setPassword("");
+      setToast(`Welcome back, ${result.user.name}.`);
+      navigate("/dashboard", { replace: true });
+    } finally {
+      setLoginPending(false);
+    }
   }
 
-  function handleLogout() {
-    setSessionUserId(null);
-    localStorage.removeItem("baore-session");
+  async function retrySessionCheck() {
+    setAuthStatus("loading");
+    setSessionError("");
+    applySession(await retrySession());
+  }
+
+  async function handleLogout() {
+    const result = await logoutRequest();
+    if (!result.ok) {
+      setToast(result.error);
+      return;
+    }
+    rememberSession("unauthenticated", null);
+    applySession({ status: "unauthenticated", user: null });
     setUsername("");
     setPassword("");
     setLoginError("");
@@ -155,7 +209,7 @@ export function AppStateProvider({ children }) {
   }
 
   function removeAccount(user) {
-    if (!isAdmin || user.id === currentUser?.id) return;
+    if (!isAdmin || sameAccount(user)) return;
     const adminsLeft = users.filter((account) => account.role === "admin" && account.id !== user.id).length;
     if (user.role === "admin" && adminsLeft === 0) {
       setToast("Keep at least one admin account.");
@@ -303,6 +357,11 @@ export function AppStateProvider({ children }) {
     toast,
     mobileOpen,
     setMobileOpen,
+    authStatus,
+    sessionError,
+    loginPending,
+    retrySessionCheck,
+    sameAccount,
     currentUser,
     isAdmin,
     displayName,

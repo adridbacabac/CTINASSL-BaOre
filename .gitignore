@@ -4,3 +4,11 @@ dist/
 .env
 .env.*
 !.env.example
+
+*.log
+cookies.txt
+
+# Local MongoDB data, if a dbpath is ever placed inside the repo
+data/db/
+*.wt
+mongod.lock

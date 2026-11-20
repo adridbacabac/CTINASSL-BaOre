@@ -19,5 +19,5 @@ export function movementLabel(type) {
 }
 
 export function roleLabel(role) {
-  return role === "admin" ? "Admin" : "User";
+  return role === "admin" ? "Admin" : "Employee";
 }

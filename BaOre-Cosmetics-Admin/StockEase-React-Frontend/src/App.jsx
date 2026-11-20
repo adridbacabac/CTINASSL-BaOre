@@ -9,8 +9,10 @@ import {
 
 import { categories } from "./lib/constants";
 import { money } from "./lib/format";
+import { landingPath, protectPath } from "./lib/access";
 import { stockStatus, movementDelta, movementLabel, roleLabel } from "./lib/stock";
 import { LoginScreen } from "./components/auth/LoginScreen";
+import { SessionNotice } from "./components/auth/SessionNotice";
 import { Sidebar } from "./components/layout/Sidebar";
 import { Toast } from "./components/layout/Toast";
 import { Topbar } from "./components/layout/Topbar";
@@ -25,6 +27,7 @@ import { AppStateProvider, useAppState } from "./state/AppState";
 
 function LoginRoute() {
   const {
+    authStatus,
     currentUser,
     username,
     setUsername,
@@ -32,11 +35,14 @@ function LoginRoute() {
     setPassword,
     loginError,
     setLoginError,
+    loginPending,
     handleLogin,
     toast,
   } = useAppState();
 
-  if (currentUser) return <Navigate to="/dashboard" replace />;
+  if (protectPath(authStatus, currentUser?.role ?? null, "/login") === "redirect-dashboard") {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return (
     <LoginScreen
@@ -46,6 +52,7 @@ function LoginRoute() {
       setPassword={setPassword}
       loginError={loginError}
       setLoginError={setLoginError}
+      loginPending={loginPending}
       handleLogin={handleLogin}
       toast={toast}
     />
@@ -53,13 +60,24 @@ function LoginRoute() {
 }
 
 function RootRedirect() {
-  const { currentUser } = useAppState();
-  return <Navigate to={currentUser ? "/dashboard" : "/login"} replace />;
+  const { authStatus } = useAppState();
+  return <Navigate to={landingPath(authStatus)} replace />;
 }
 
 function AdminOnly({ children }) {
-  const { isAdmin } = useAppState();
-  if (!isAdmin) return <Navigate to="/dashboard" replace />;
+  const { authStatus, currentUser } = useAppState();
+  const { pathname } = useLocation();
+  if (protectPath(authStatus, currentUser?.role ?? null, pathname) !== "allow") {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return children;
+}
+
+function AuthBoundary({ children }) {
+  const { authStatus, sessionError, retrySessionCheck } = useAppState();
+  if (authStatus === "loading" || authStatus === "error") {
+    return <SessionNotice status={authStatus} message={sessionError} onRetry={retrySessionCheck} />;
+  }
   return children;
 }
 
@@ -167,8 +185,10 @@ function AppShell() {
 }
 
 function ProtectedLayout() {
-  const { currentUser } = useAppState();
-  if (!currentUser) return <Navigate to="/login" replace />;
+  const { authStatus, currentUser } = useAppState();
+  const { pathname } = useLocation();
+  const decision = protectPath(authStatus, currentUser?.role ?? null, pathname);
+  if (decision === "redirect-login" || decision === "show-login") return <Navigate to="/login" replace />;
   return <AppShell />;
 }
 
@@ -246,13 +266,14 @@ function InventoryRoute() {
 }
 
 function ActivityRoute() {
-  const { movements, items, users } = useAppState();
+  const { movements, items, users, currentUser } = useAppState();
 
   return (
     <ActivityPage
       movements={movements}
       items={items}
       users={users}
+      currentUser={currentUser}
       movementDelta={movementDelta}
       movementLabel={movementLabel}
     />
@@ -260,7 +281,7 @@ function ActivityRoute() {
 }
 
 function TeamRoute() {
-  const { openAddAccount, users, currentUser, removeAccount } = useAppState();
+  const { openAddAccount, users, currentUser, removeAccount, sameAccount } = useAppState();
 
   return (
     <TeamPage
@@ -268,6 +289,7 @@ function TeamRoute() {
       users={users}
       roleLabel={roleLabel}
       currentUser={currentUser}
+      sameAccount={sameAccount}
       removeAccount={removeAccount}
     />
   );
@@ -293,7 +315,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <AppStateProvider>
-        <AppRoutes />
+        <AuthBoundary>
+          <AppRoutes />
+        </AuthBoundary>
       </AppStateProvider>
     </BrowserRouter>
   );

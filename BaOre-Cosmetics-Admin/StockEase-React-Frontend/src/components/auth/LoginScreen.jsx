@@ -2,7 +2,7 @@ import React from "react";
 import { ChevronRight, Sparkles } from "lucide-react";
 import { Toast } from "../layout/Toast";
 
-export function LoginScreen({ username, setUsername, password, setPassword, loginError, setLoginError, handleLogin, toast }) {
+export function LoginScreen({ username, setUsername, password, setPassword, loginError, setLoginError, loginPending, handleLogin, toast }) {
   return (
       <div className="auth-shell">
         <div className="auth-panel auth-panel-solo">
@@ -31,7 +31,9 @@ export function LoginScreen({ username, setUsername, password, setPassword, logi
                 />
               </label>
               {loginError && <p className="form-error">{loginError}</p>}
-              <button type="submit" className="primary-btn auth-submit">Sign in <ChevronRight size={16} /></button>
+              <button type="submit" className="primary-btn auth-submit" disabled={loginPending}>
+                {loginPending ? "Signing in" : "Sign in"} {!loginPending && <ChevronRight size={16} />}
+              </button>
             </form>
           </section>
         </div>

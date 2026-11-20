@@ -10,11 +10,3 @@ export function readStorage(key, fallback) {
     return fallback;
   }
 }
-
-export function readSession() {
-  try {
-    return JSON.parse(localStorage.getItem("baore-session") || "null");
-  } catch {
-    return null;
-  }
-}
