@@ -1,0 +1,62 @@
+[
+  {
+    "name": "Velvet Matte Lipstick",
+    "category": "Lips",
+    "sku": "LIP-001",
+    "brand": "Ba'Oré",
+    "shade": "Rosewood",
+    "quantity": 28,
+    "price": 399,
+    "status": "in_stock"
+  },
+  {
+    "name": "Dewy Glow Foundation",
+    "category": "Face",
+    "sku": "FAC-002",
+    "brand": "Ba'Oré",
+    "shade": "Warm Beige",
+    "quantity": 16,
+    "price": 699,
+    "status": "in_stock"
+  },
+  {
+    "name": "Cloud Nine Blush",
+    "category": "Cheeks",
+    "sku": "CHK-003",
+    "brand": "Ba'Oré",
+    "shade": "Soft Peach",
+    "quantity": 4,
+    "price": 349,
+    "status": "low_stock"
+  },
+  {
+    "name": "Lash Muse Mascara",
+    "category": "Eyes",
+    "sku": "EYE-004",
+    "brand": "Ba'Oré",
+    "shade": "Jet Black",
+    "quantity": 22,
+    "price": 429,
+    "status": "in_stock"
+  },
+  {
+    "name": "Silk Touch Setting Powder",
+    "category": "Face",
+    "sku": "FAC-005",
+    "brand": "Ba'Oré",
+    "shade": "Translucent",
+    "quantity": 3,
+    "price": 499,
+    "status": "low_stock"
+  },
+  {
+    "name": "Petal Shine Lip Gloss",
+    "category": "Lips",
+    "sku": "LIP-006",
+    "brand": "Ba'Oré",
+    "shade": "Pink Quartz",
+    "quantity": 35,
+    "price": 299,
+    "status": "in_stock"
+  }
+]
