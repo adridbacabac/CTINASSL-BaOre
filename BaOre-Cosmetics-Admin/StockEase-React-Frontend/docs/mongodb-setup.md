@@ -25,12 +25,47 @@ baore_cosmetics
 ```
 
 ## 3. Collections to create
-Create these collections in MongoDB:
+The current site keeps three record types. Create these collections in MongoDB:
 
 - `products`
-- `categories`
 - `stockMovements`
-- `users` (for future admin/user roles)
+- `users`
+
+Category is a text field on each product. The site does not manage a separate categories collection. The fixed category names are Face, Eyes, Lips, Cheeks, Tools & Brushes, and Skincare.
+
+## 3.1 Roles in the current site
+Sign-in uses `username` and `password`. The account `role` decides the screens.
+
+Both roles can:
+- open the dashboard (product count, units on hand, low-stock count)
+- search and filter the catalogue
+- see price, shade, SKU, and stock status
+- sign out
+
+Stock status is calculated from quantity, with a low-stock line at 5 units:
+- `out_of_stock` when quantity is 0
+- `low_stock` when quantity is 1 to 5
+- `in_stock` when quantity is above 5
+
+### Admin (`role: "admin"`)
+- inventory value on the dashboard and inventory page
+- add, edit, and delete products
+- stock movements of type `restock`, `sale`, `adjustment`, and `return`
+- Activity page for every stock movement and who recorded it
+- Team page to add an account and choose `admin` or `user`
+- remove another account
+- the signed-in admin cannot remove their own account
+- the store keeps at least one admin account
+
+### User (`role: "user"`)
+- Floor stock page for the same catalogue
+- stock movements of type `stock_in` and `stock_out` only
+- a personal list of their own recent stock updates
+- no inventory value, no product add/edit/delete, no Activity page, and no Team page
+
+Starter accounts in the frontend:
+- Admin One, username `admin`, role `admin`
+- User One, username `employee`, role `user`
 
 ## 4. Product schema
 The product collection should store inventory data like this:
@@ -44,126 +79,137 @@ The product collection should store inventory data like this:
   "brand": "Ba'Oré",
   "shade": "Rosewood",
   "quantity": 28,
-  "price": 399,
-  "status": "in_stock",
-  "createdAt": "2026-11-13T00:00:00.000Z",
-  "updatedAt": "2026-11-13T00:00:00.000Z"
+  "price": 399
 }
 ```
+
+The site does not save `status`, `createdAt`, or `updatedAt` on the product. Status is calculated from `quantity` when the page renders.
 
 ### Required fields
 - `name` - product name
-- `category` - group name
+- `category` - one of the fixed category names
 - `sku` - unique identifier for stock tracking
 - `brand` - seller or brand name
 - `shade` - product shade/color name
-- `quantity` - current inventory count
-- `price` - unit price in PHP
-- `status` - can be `in_stock`, `low_stock`, or `out_of_stock`
-- `createdAt` - creation time
-- `updatedAt` - last update time
+- `quantity` - current inventory count, whole number, zero or higher
+- `price` - unit price in PHP, zero or higher
 
-## 5. Category schema
-
-```json
-{
-  "_id": "ObjectId",
-  "name": "Lips",
-  "description": "Lip products",
-  "createdAt": "2026-11-13T00:00:00.000Z"
-}
-```
-
-## 6. Stock movement schema
-Use this for stock changes later:
+## 5. Stock movement schema
+Each sale, return, restock, or adjustment is one record:
 
 ```json
 {
   "_id": "ObjectId",
   "productId": "ObjectId",
-  "type": "restock",
-  "quantity": 15,
-  "note": "New shipment",
-  "createdAt": "2026-11-13T00:00:00.000Z"
+  "userId": "ObjectId",
+  "type": "sale",
+  "quantity": 2,
+  "note": "Counter sale",
+  "createdAt": "2026-11-20T00:00:00.000Z"
 }
 ```
 
-## 7. User schema (future admin layer)
+### Fields
+- `productId` - product that changed
+- `userId` - account that recorded the change
+- `type` - `restock`, `sale`, `adjustment`, or `return` for an admin; `stock_in` or `stock_out` for a user
+- `quantity` - positive whole number of units
+- `direction` - only for `adjustment`: `in` adds units, `out` removes units
+- `note` - optional text
+- `createdAt` - when the movement was saved
+
+`sale` and `stock_out` subtract units. `restock`, `return`, and `stock_in` add units. The resulting product quantity cannot go below zero.
+
+## 6. User schema
+Accounts used by the sign-in screen and the Team page:
 
 ```json
 {
   "_id": "ObjectId",
-  "name": "Store Admin",
+  "name": "Admin One",
   "email": "admin@baore.com",
   "username": "admin",
   "passwordHash": "hashed_value",
   "role": "admin",
-  "createdAt": "2026-11-13T00:00:00.000Z"
+  "createdAt": "2026-11-20T00:00:00.000Z"
 }
 ```
 
-## 8. Relationship cardinality
-Use the following cardinality logic for the database design:
+### Fields
+- `name` - display name
+- `email` - unique email
+- `username` - unique sign-in name
+- `passwordHash` - store a hash in MongoDB. The current frontend keeps a plain `password` in browser storage until the API exists
+- `role` - `admin` or `user`
+- `createdAt` - when the account was added
 
-- `categories` to `products`: one-to-many
-  - One category can have many products.
-  - Each product belongs to exactly one category.
-  - Recommended field: `products.category` stores the category name or category ID.
-  - Use a normalized approach: `products.categoryId` as a reference to `categories._id` is the cleaner design.
+A second starter account is User One, email `user@baore.com`, username `employee`, role `user`.
+
+## 7. Relationship cardinality
+Use the following cardinality logic for the database design:
 
 - `products` to `stockMovements`: one-to-many
   - One product can have many stock movement records.
   - Each stock movement belongs to one product.
-  - Recommended field: `stockMovements.productId` references `products._id`.
+  - Field: `stockMovements.productId` references `products._id`.
 
-- `users` to `stockMovements`: one-to-many (optional if tracking who updated stock)
+- `users` to `stockMovements`: one-to-many
   - One user can create many stock movements.
-  - Each movement may be created by one user.
-  - Recommended field: `stockMovements.userId` references `users._id`.
+  - Each movement is created by one user.
+  - Field: `stockMovements.userId` references `users._id`.
 
-- `users` to `products` (for future admin-only workflows): many-to-many if multiple users can manage multiple products
-  - In a simple inventory setup, this is usually not required.
-  - Most cases keep product ownership under the store, not per-user.
+Products belong to the store. The site does not assign a product to a particular user.
 
-### Recommended cardinality summary
-- `Category 1 --- N Product`
+### Cardinality summary
 - `Product 1 --- N StockMovement`
-- `User 1 --- N StockMovement` (optional tracking)
-- `User N --- N Product` only if a product-team ownership model is later introduced
+- `User 1 --- N StockMovement`
 
-## 9. MongoDB validation rules
-These rules should be enforced in the backend later:
+## 8. Validation rules
+These rules match the current site and should be enforced in the backend later:
 - `sku` must be unique
-- `quantity` cannot be negative
+- product `quantity` cannot be negative
 - `price` must be greater than or equal to 0
-- `status` should be derived from quantity
-- `category` should match an existing category record
+- `category` must be one of the fixed category names
+- stock status is derived from quantity, using 5 units as the low-stock line
+- movement `quantity` must be a whole number greater than 0
+- a movement cannot reduce product quantity below 0
+- `username` must be unique
+- `email` must be unique and contain `@`
+- `role` must be `admin` or `user`
+- user accounts can record only `stock_in` and `stock_out`
+- admin accounts can record `restock`, `sale`, `adjustment`, and `return`
 
-## 10. Example Mongo shell commands
+## 9. Example Mongo shell commands
 Use this in MongoDB shell after connecting to the database:
 
 ```javascript
 use baore_cosmetics;
 
 db.createCollection("products");
-db.createCollection("categories");
 db.createCollection("stockMovements");
 db.createCollection("users");
 
 db.products.createIndex({ sku: 1 }, { unique: true });
+db.users.createIndex({ username: 1 }, { unique: true });
+db.users.createIndex({ email: 1 }, { unique: true });
 ```
 
-## 11. Seed data approach
-The frontend currently uses mock product data. For the database step, the data can be imported from the seed JSON file in this folder:
+## 10. Seed data approach
+The frontend currently uses mock product data in browser storage. For the database step, product data can be imported from the seed JSON file in this folder:
 
 - `docs/baore-seed-data.json`
 
-## 12. Recommended next step
-Before the backend is added, confirm the database structure with this checklist:
-- product fields are final
-- category names are finalized
-- SKU uniqueness rule is agreed
-- low-stock threshold is set to 5 units
-- relationship cardinality is approved
+That file includes a `status` field. The site ignores stored status and calculates it from `quantity`.
 
-Once this is approved, the backend integration can be done in the next phase without changing the frontend design.
+User records are created in the app: the two starter accounts, plus any account an admin adds on the Team page.
+
+## 11. Recommended next step
+Before the backend is added, confirm this checklist:
+- product fields match the inventory form
+- category names stay the fixed list used by the site
+- SKU, username, and email are unique
+- low-stock threshold stays at 5 units
+- stock movements store `userId`, `type`, and `quantity`
+- admin and user access stay split as described above
+
+Once this is approved, the backend can replace browser storage with API calls without changing the screens.

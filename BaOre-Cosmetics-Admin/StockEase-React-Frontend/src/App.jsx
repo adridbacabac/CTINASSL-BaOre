@@ -46,8 +46,8 @@ const starterUsers = [
 ];
 
 const employeeMovementTypes = [
-  { id: "sale", label: "Sale" },
-  { id: "return", label: "Return" },
+  { id: "stock_out", label: "Stock out" },
+  { id: "stock_in", label: "Stock in" },
 ];
 
 const adminMovementTypes = [
@@ -65,9 +65,14 @@ function stockStatus(quantity) {
 }
 
 function movementDelta(movement) {
-  if (movement.type === "sale") return -Number(movement.quantity);
-  if (movement.type === "restock" || movement.type === "return") return Number(movement.quantity);
+  if (movement.type === "sale" || movement.type === "stock_out") return -Number(movement.quantity);
+  if (movement.type === "restock" || movement.type === "return" || movement.type === "stock_in") return Number(movement.quantity);
   return movement.direction === "out" ? -Number(movement.quantity) : Number(movement.quantity);
+}
+
+function movementLabel(type) {
+  const labels = { restock: "Restock", sale: "Sale", adjustment: "Adjustment", return: "Return", stock_in: "Stock in", stock_out: "Stock out" };
+  return labels[type] || type;
 }
 
 function roleLabel(role) {
@@ -319,7 +324,7 @@ export default function App() {
   function openMovement(item) {
     setMovementModal(item);
     setMovementForm({
-      type: isAdmin ? "restock" : "sale",
+      type: isAdmin ? "restock" : "stock_out",
       quantity: "",
       note: "",
       direction: "out",
@@ -560,7 +565,7 @@ export default function App() {
             <div className="card-head">
               <div>
                 <h3>Your recent updates</h3>
-                <p>Sales and returns recorded on your account.</p>
+                <p>Stock in and stock out recorded on your account.</p>
               </div>
             </div>
             {myMovements.length ? (
@@ -572,7 +577,7 @@ export default function App() {
                     <div className="low-row" key={movement.id}>
                       <div>
                         <strong>{product?.name || "Removed product"}</strong>
-                        <span>{movement.type} · {movement.note || "No note"}</span>
+                        <span>{movementLabel(movement.type)} · {movement.note || "No note"}</span>
                       </div>
                       <b className={delta < 0 ? "warn-text" : ""}>{delta > 0 ? `+${delta}` : delta}</b>
                     </div>
@@ -580,7 +585,7 @@ export default function App() {
                 })}
               </div>
             ) : (
-              <div className="all-good"><ClipboardList size={24} /> <strong>Nothing recorded yet</strong> <span>Sales and returns you save will show up here.</span></div>
+              <div className="all-good"><ClipboardList size={24} /> <strong>Nothing recorded yet</strong> <span>Stock in and stock out you save will show up here.</span></div>
             )}
           </section>
         )}
@@ -593,7 +598,7 @@ export default function App() {
           <div>
             <div className="eyebrow"><Sparkles size={12} /> your beauty collection</div>
             <h1>{isAdmin ? "Product Inventory" : "Floor stock"}</h1>
-            <p className="muted">{isAdmin ? "Manage every lipstick, palette, and beauty essential." : "Search the shelf and record sales or returns. Catalogue changes stay with your manager."}</p>
+            <p className="muted">{isAdmin ? "Manage every lipstick, palette, and beauty essential." : "Search the shelf and record stock in or stock out. Catalogue changes stay with your manager."}</p>
           </div>
           {isAdmin && <button type="button" className="primary-btn" onClick={openAddProduct}><Plus size={16} /> Add product</button>}
         </section>
@@ -656,7 +661,7 @@ export default function App() {
                     <td><span className={`stock-pill ${stockStatus(item.quantity).className}`}>{stockStatus(item.quantity).label}</span></td>
                     <td>
                       <div className="action-group">
-                        <button type="button" title={isAdmin ? "Update stock" : "Record sale or return"} onClick={() => openMovement(item)}><ClipboardList size={15} /></button>
+                        <button type="button" title={isAdmin ? "Update stock" : "Record stock in or stock out"} onClick={() => openMovement(item)}><ClipboardList size={15} /></button>
                         {isAdmin && <button type="button" title="Edit product" onClick={() => openEditProduct(item)}><Pencil size={15} /></button>}
                         {isAdmin && <button type="button" className="danger" title="Delete product" onClick={() => deleteProduct(item)}><Trash2 size={15} /></button>}
                       </div>
@@ -715,7 +720,7 @@ export default function App() {
                           <td>{new Date(movement.createdAt).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</td>
                           <td>{staff?.name || "Unknown"}</td>
                           <td><strong>{product?.name || "Removed product"}</strong></td>
-                          <td><span className="category-tag">{movement.type}</span></td>
+                          <td><span className="category-tag">{movementLabel(movement.type)}</span></td>
                           <td className={delta < 0 ? "warn-text" : "price-cell"}>{delta > 0 ? `+${delta}` : delta}</td>
                           <td>{movement.note || "—"}</td>
                         </tr>
@@ -836,7 +841,7 @@ export default function App() {
               </label>
               <label>
                 Note
-                <input value={movementForm.note} onChange={(e) => setMovementForm({ ...movementForm, note: e.target.value })} placeholder={isAdmin ? "New shipment, count fix..." : "Counter sale, customer return..."} />
+                <input value={movementForm.note} onChange={(e) => setMovementForm({ ...movementForm, note: e.target.value })} placeholder={isAdmin ? "New shipment, count fix..." : "Received stock, items leaving the shelf..."} />
               </label>
               <div className="form-actions">
                 <button type="button" className="secondary-btn" onClick={() => setMovementModal(null)}>Cancel</button>
