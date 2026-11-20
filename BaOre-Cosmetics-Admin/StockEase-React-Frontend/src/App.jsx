@@ -17,6 +17,10 @@ import {
   Droplets,
   ShieldCheck,
   Eye,
+  LogOut,
+  History,
+  Users,
+  ClipboardList,
 } from "lucide-react";
 
 const starterItems = [
@@ -32,7 +36,43 @@ const starterItems = [
 
 const categories = ["Face", "Eyes", "Lips", "Cheeks", "Tools & Brushes", "Skincare"];
 const emptyProduct = { name: "", category: "Face", sku: "", quantity: "", price: "", brand: "Ba'Oré", shade: "" };
+const emptyAccount = { name: "", email: "", username: "", password: "", role: "user" };
+const LOW_STOCK = 5;
 const money = (value) => new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 }).format(Number(value) || 0);
+
+const starterUsers = [
+  { id: "admin-1", name: "Admin One", email: "admin@baore.com", username: "admin", password: "baore-admin", role: "admin" },
+  { id: "user-1", name: "User One", email: "user@baore.com", username: "employee", password: "baore-staff", role: "user" },
+];
+
+const employeeMovementTypes = [
+  { id: "sale", label: "Sale" },
+  { id: "return", label: "Return" },
+];
+
+const adminMovementTypes = [
+  { id: "restock", label: "Restock" },
+  { id: "sale", label: "Sale" },
+  { id: "adjustment", label: "Adjustment" },
+  { id: "return", label: "Return" },
+];
+
+function stockStatus(quantity) {
+  const qty = Number(quantity);
+  if (qty <= 0) return { label: "Out of stock", className: "out" };
+  if (qty <= LOW_STOCK) return { label: "Low stock", className: "low" };
+  return { label: "In stock", className: "ok" };
+}
+
+function movementDelta(movement) {
+  if (movement.type === "sale") return -Number(movement.quantity);
+  if (movement.type === "restock" || movement.type === "return") return Number(movement.quantity);
+  return movement.direction === "out" ? -Number(movement.quantity) : Number(movement.quantity);
+}
+
+function roleLabel(role) {
+  return role === "admin" ? "Admin" : "User";
+}
 
 function readStorage(key, fallback) {
   try {
@@ -47,20 +87,67 @@ function readStorage(key, fallback) {
   }
 }
 
+function readSession() {
+  try {
+    return JSON.parse(localStorage.getItem("baore-session") || "null");
+  } catch {
+    return null;
+  }
+}
+
 export default function App() {
   const [items, setItems] = useState(() => readStorage("baore-items", starterItems));
+  const [users, setUsers] = useState(() => {
+    const stored = readStorage("baore-users", starterUsers);
+    const list = Array.isArray(stored) ? [...stored] : [];
+    starterUsers.forEach((account) => {
+      const exists = list.some((user) => user.id === account.id || user.username.toLowerCase() === account.username.toLowerCase());
+      if (!exists) list.push(account);
+    });
+    return list;
+  });
+  const [movements, setMovements] = useState(() => readStorage("baore-movements", []));
+  const [sessionUserId, setSessionUserId] = useState(readSession);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [page, setPage] = useState("dashboard");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All categories");
   const [productModal, setProductModal] = useState(false);
   const [editId, setEditId] = useState(null);
   const [form, setForm] = useState(emptyProduct);
+  const [movementModal, setMovementModal] = useState(null);
+  const [movementForm, setMovementForm] = useState({ type: "sale", quantity: "", note: "", direction: "out" });
+  const [accountModal, setAccountModal] = useState(false);
+  const [accountForm, setAccountForm] = useState(emptyAccount);
   const [toast, setToast] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
-  const currentUser = { id: "admin-1", name: "Store Admin", role: "admin" };
+
+  const currentUser = users.find((user) => user.id === sessionUserId) || null;
+  const isAdmin = currentUser?.role === "admin";
+  const activePage = !isAdmin && (page === "activity" || page === "team") ? "dashboard" : page;
+  const displayName = currentUser?.name || "there";
+  const movementTypes = isAdmin ? adminMovementTypes : employeeMovementTypes;
 
   useEffect(() => {
     localStorage.setItem("baore-items", JSON.stringify(items));
   }, [items]);
+
+  useEffect(() => {
+    localStorage.setItem("baore-users", JSON.stringify(users));
+  }, [users]);
+
+  useEffect(() => {
+    localStorage.setItem("baore-movements", JSON.stringify(movements));
+  }, [movements]);
+
+  useEffect(() => {
+    if (sessionUserId && !users.some((user) => user.id === sessionUserId)) {
+      setSessionUserId(null);
+      localStorage.removeItem("baore-session");
+    }
+  }, [sessionUserId, users]);
 
   useEffect(() => {
     if (!toast) return;
@@ -68,7 +155,8 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [toast]);
 
-  const lowStockItems = items.filter((item) => Number(item.quantity) <= 5);
+  const lowStockItems = items.filter((item) => Number(item.quantity) <= LOW_STOCK);
+  const myMovements = movements.filter((movement) => movement.userId === currentUser?.id);
   const totalUnits = items.reduce((sum, item) => sum + Number(item.quantity), 0);
   const inventoryValue = items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.price), 0);
 
@@ -80,13 +168,89 @@ export default function App() {
     });
   }, [items, filter, search]);
 
+  function goTo(nextPage) {
+    setPage(nextPage);
+    setMobileOpen(false);
+  }
+
+  function handleLogin(event) {
+    event.preventDefault();
+    const match = users.find((user) => user.username.toLowerCase() === username.trim().toLowerCase() && user.password === password);
+    if (!match) {
+      setLoginError("Those sign-in details don’t match a store account.");
+      return;
+    }
+    setLoginError("");
+    setSessionUserId(match.id);
+    localStorage.setItem("baore-session", JSON.stringify(match.id));
+    setPage("dashboard");
+    setPassword("");
+    setToast(`Welcome back, ${match.name}.`);
+  }
+
+  function handleLogout() {
+    setSessionUserId(null);
+    localStorage.removeItem("baore-session");
+    setUsername("");
+    setPassword("");
+    setLoginError("");
+    setPage("dashboard");
+    setMobileOpen(false);
+    setProductModal(false);
+    setMovementModal(null);
+    setAccountModal(false);
+  }
+
+  function openAddAccount() {
+    if (!isAdmin) return;
+    setAccountForm(emptyAccount);
+    setAccountModal(true);
+  }
+
+  function saveAccount(event) {
+    event.preventDefault();
+    if (!isAdmin) return;
+    const account = {
+      name: accountForm.name.trim(),
+      email: accountForm.email.trim(),
+      username: accountForm.username.trim(),
+      password: accountForm.password,
+      role: accountForm.role === "admin" ? "admin" : "user",
+    };
+
+    if (!account.name || !account.email || !account.username || !account.password) {
+      setToast("Please complete all account fields.");
+      return;
+    }
+
+    if (!account.email.includes("@")) {
+      setToast("Enter a valid email.");
+      return;
+    }
+
+    const duplicate = users.some((user) => user.username.toLowerCase() === account.username.toLowerCase() || user.email.toLowerCase() === account.email.toLowerCase());
+    if (duplicate) {
+      setToast("That username or email is already in use.");
+      return;
+    }
+
+    setUsers((prev) => [
+      ...prev,
+      { ...account, id: `user-${Date.now()}`, createdAt: new Date().toISOString() },
+    ]);
+    setAccountModal(false);
+    setToast("Account added.");
+  }
+
   function openAddProduct() {
+    if (!isAdmin) return;
     setEditId(null);
     setForm(emptyProduct);
     setProductModal(true);
   }
 
   function openEditProduct(item) {
+    if (!isAdmin) return;
     setEditId(item.id);
     setForm({
       name: item.name,
@@ -102,6 +266,7 @@ export default function App() {
 
   function saveProduct(event) {
     event.preventDefault();
+    if (!isAdmin) return;
     const item = { ...form, name: form.name.trim(), sku: form.sku.trim().toUpperCase(), quantity: Number(form.quantity), price: Number(form.price) };
 
     if (!item.name || !item.sku || form.quantity === "" || form.price === "") {
@@ -132,16 +297,113 @@ export default function App() {
   }
 
   function deleteProduct(item) {
+    if (!isAdmin) return;
     if (window.confirm(`Delete ${item.name}?`)) {
       setItems((prev) => prev.filter((product) => product.id !== item.id));
       setToast("Product deleted.");
     }
   }
 
+  function openMovement(item) {
+    setMovementModal(item);
+    setMovementForm({
+      type: isAdmin ? "restock" : "sale",
+      quantity: "",
+      note: "",
+      direction: "out",
+    });
+  }
+
+  function saveMovement(event) {
+    event.preventDefault();
+    if (!movementModal || !currentUser) return;
+    const allowed = movementTypes.some((type) => type.id === movementForm.type);
+    const amount = Number(movementForm.quantity);
+    if (!allowed || !Number.isInteger(amount) || amount <= 0) {
+      setToast("Enter a whole number of units.");
+      return;
+    }
+
+    const delta = movementDelta({ ...movementForm, quantity: amount });
+    const nextQty = Number(movementModal.quantity) + delta;
+    if (nextQty < 0) {
+      setToast("That would take stock below zero.");
+      return;
+    }
+
+    setItems((prev) => prev.map((product) => (product.id === movementModal.id ? { ...product, quantity: nextQty } : product)));
+    setMovements((prev) => [
+      {
+        id: Date.now(),
+        productId: movementModal.id,
+        type: movementForm.type,
+        quantity: amount,
+        direction: movementForm.type === "adjustment" ? movementForm.direction : undefined,
+        note: movementForm.note.trim(),
+        userId: currentUser.id,
+        createdAt: new Date().toISOString(),
+      },
+      ...prev,
+    ]);
+    setMovementModal(null);
+    setToast("Stock movement saved.");
+  }
+
   const navItems = [
-    { name: "Dashboard", icon: LayoutDashboard },
-    { name: "Inventory", icon: Package },
+    { name: "Dashboard", id: "dashboard", icon: LayoutDashboard },
+    { name: isAdmin ? "Inventory" : "Floor stock", id: "inventory", icon: Package },
+    ...(isAdmin
+      ? [
+          { name: "Activity", id: "activity", icon: History },
+          { name: "Team", id: "team", icon: Users },
+        ]
+      : []),
   ];
+
+  const pageTitle = {
+    dashboard: "Dashboard",
+    inventory: isAdmin ? "Inventory" : "Floor stock",
+    activity: "Activity",
+    team: "Team",
+  }[activePage];
+
+  if (!currentUser) {
+    return (
+      <div className="auth-shell">
+        <div className="auth-panel auth-panel-solo">
+          <section className="auth-card">
+            <form className="auth-form" onSubmit={handleLogin}>
+              <div className="eyebrow"><Sparkles size={12} /> Store sign in</div>
+              <h2>Welcome back</h2>
+              <p className="muted">Use your store username. The account role opens the tools you need.</p>
+              <label>
+                Username
+                <input
+                  value={username}
+                  onChange={(e) => { setUsername(e.target.value); setLoginError(""); }}
+                  placeholder="admin"
+                  autoComplete="username"
+                />
+              </label>
+              <label>
+                Password
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); setLoginError(""); }}
+                  placeholder="Your password"
+                  autoComplete="current-password"
+                />
+              </label>
+              {loginError && <p className="form-error">{loginError}</p>}
+              <button type="submit" className="primary-btn auth-submit">Sign in <ChevronRight size={16} /></button>
+            </form>
+          </section>
+        </div>
+        {toast && <div className="toast"><Sparkles size={15} /> {toast}</div>}
+      </div>
+    );
+  }
 
   return (
     <div className="app-shell">
@@ -159,7 +421,7 @@ export default function App() {
 
         <div className="nav-caption">MAIN MENU</div>
         {navItems.map((item) => (
-          <button key={item.name} type="button" className="nav-link selected">
+          <button key={item.id} type="button" className={`nav-link ${activePage === item.id ? "selected" : ""}`} onClick={() => goTo(item.id)}>
             <item.icon size={18} />
             <span>{item.name}</span>
             <ChevronRight size={15} className="nav-arrow" />
@@ -170,17 +432,28 @@ export default function App() {
 
         <div className="side-promo">
           <div className="promo-spark"><Sparkles size={18} /></div>
-          <strong>A little sparkle goes a long way.</strong>
-          <p>Keep your beauty stock blooming.</p>
-          <button type="button" onClick={openAddProduct}>Add a product <Plus size={14} /></button>
+          {isAdmin ? (
+            <>
+              <strong>A little sparkle goes a long way.</strong>
+              <p>Keep your beauty stock blooming.</p>
+              <button type="button" onClick={openAddProduct}>Add a product <Plus size={14} /></button>
+            </>
+          ) : (
+            <>
+              <strong>Keep the shelf honest.</strong>
+              <p>Record sales and returns as they happen.</p>
+              <button type="button" onClick={() => goTo("inventory")}>Open floor stock <ChevronRight size={14} /></button>
+            </>
+          )}
         </div>
 
         <div className="admin-profile">
-          <div className="admin-avatar">{(currentUser?.name || "U").charAt(0).toUpperCase()}</div>
+          <div className="admin-avatar">{(currentUser.name || "U").charAt(0).toUpperCase()}</div>
           <div>
-            <strong>{currentUser?.name || "User"}</strong>
-            <span>Administrator</span>
+            <strong>{currentUser.name}</strong>
+            <span>{roleLabel(currentUser.role)}</span>
           </div>
+          <button type="button" className="logout-btn" onClick={handleLogout} aria-label="Sign out"><LogOut size={15} /></button>
         </div>
       </aside>
 
@@ -189,29 +462,31 @@ export default function App() {
       <main className="main-area">
         <header className="topbar">
           <button className="mobile-toggle" type="button" onClick={() => setMobileOpen(true)}><Menu size={18} /></button>
-          <div className="crumb">Ba'Oré Cosmetics <span>/</span> <b>Dashboard</b></div>
+          <div className="crumb">Ba'Oré Cosmetics <span>/</span> <b>{pageTitle}</b></div>
           <div className="top-actions">
             <span className="live-dot" />
-            <span>Store system active</span>
+            <span>{roleLabel(currentUser.role)} session</span>
             <div className="top-avatar">{(currentUser.name || "U").charAt(0).toUpperCase()}</div>
           </div>
         </header>
 
+        {activePage === "dashboard" && (
+        <>
         <section className="welcome-row">
           <div>
-            <div className="eyebrow"><Sparkles size={12} /> Your beauty business at a glance</div>
-            <h1>Good day, Admin</h1>
-            <p className="muted">Here’s the latest glow-up of your store inventory.</p>
+            <div className="eyebrow"><Sparkles size={12} /> {isAdmin ? "Your beauty business at a glance" : "Your shift at a glance"}</div>
+            <h1>Good day, {displayName}</h1>
+            <p className="muted">{isAdmin ? "Here’s the latest glow-up of your store inventory." : "Check the shelf, catch low stock, and record what leaves the counter."}</p>
           </div>
-          <button type="button" className="primary-btn" onClick={openAddProduct}><Plus size={16} /> Add product</button>
+          {isAdmin && <button type="button" className="primary-btn" onClick={openAddProduct}><Plus size={16} /> Add product</button>}
         </section>
 
         <section className="hero-banner">
           <div className="hero-copy">
-            <div className="hero-kicker">The Ba'Oré edit</div>
-            <h2>Beauty begins with being stocked.</h2>
-            <p>Keep your stock, customer stories, and product shelves aligned in one chic workspace.</p>
-            <button type="button" onClick={() => document.getElementById("inventory-section")?.scrollIntoView({ behavior: "smooth" })}>Explore inventory <ChevronRight size={15} /></button>
+            <div className="hero-kicker">{isAdmin ? "The Ba'Oré edit" : "On the floor"}</div>
+            <h2>{isAdmin ? "Beauty begins with being stocked." : "The shelf is ready when you are."}</h2>
+            <p>{isAdmin ? "Keep your stock, customer stories, and product shelves aligned in one chic workspace." : "See what’s in stock, spot shades running low, and record sales or returns."}</p>
+            <button type="button" onClick={() => goTo("inventory")}>{isAdmin ? "Explore inventory" : "Open floor stock"} <ChevronRight size={15} /></button>
           </div>
           <div className="hero-art" aria-hidden="true">
             <div className="orb orb-one" />
@@ -222,7 +497,7 @@ export default function App() {
           </div>
         </section>
 
-        <section className="stats-grid">
+        <section className={`stats-grid ${isAdmin ? "" : "cols-3"}`}>
           <article className="stat-card">
             <div className="stat-label">Total products <span className="icon-box lavender"><Package size={18} /></span></div>
             <div className="stat-value">{items.length}</div>
@@ -238,11 +513,13 @@ export default function App() {
             <div className="stat-value">{lowStockItems.length}</div>
             <div className="stat-foot">Products need a restock</div>
           </article>
+          {isAdmin && (
           <article className="stat-card">
             <div className="stat-label">Inventory value <span className="icon-box lilac"><CircleDollarSign size={18} /></span></div>
             <div className="stat-value money-value">{money(inventoryValue)}</div>
             <div className="stat-foot">Total value at selling price</div>
           </article>
+          )}
         </section>
 
         <section className="dashboard-grid">
@@ -252,7 +529,7 @@ export default function App() {
                 <h3>Recently in your collection</h3>
                 <p>A quick look at your beauty shelf.</p>
               </div>
-              <button type="button" className="text-link" onClick={() => document.getElementById("inventory-section")?.scrollIntoView({ behavior: "smooth" })}>View inventory <ChevronRight size={14} /></button>
+              <button type="button" className="text-link" onClick={() => goTo("inventory")}>{isAdmin ? "View inventory" : "Open floor stock"} <ChevronRight size={14} /></button>
             </div>
             <div className="list-stack">
               {items.slice(0, 5).map((item, index) => (
@@ -265,7 +542,7 @@ export default function App() {
                     <span>{item.category} · {item.shade || "No shade"}</span>
                   </div>
                   <div className="row-price">{money(item.price)}</div>
-                  <span className={`stock-pill ${item.quantity <= 5 ? "low" : "ok"}`}>{item.quantity <= 5 ? "Low stock" : "In stock"}</span>
+                  <span className={`stock-pill ${stockStatus(item.quantity).className}`}>{stockStatus(item.quantity).label}</span>
                 </div>
               ))}
             </div>
@@ -296,31 +573,65 @@ export default function App() {
               <div className="all-good"><ShieldCheck size={24} /> <strong>All stocked up!</strong> <span>No products need attention.</span></div>
             )}
 
-            <button type="button" className="restock-btn" onClick={() => document.getElementById("inventory-section")?.scrollIntoView({ behavior: "smooth" })}>Manage stock <ChevronRight size={14} /></button>
+            <button type="button" className="restock-btn" onClick={() => goTo("inventory")}>{isAdmin ? "Manage stock" : "Review floor stock"} <ChevronRight size={14} /></button>
           </div>
         </section>
 
+        {!isAdmin && (
+          <section className="content-card feature-card">
+            <div className="card-head">
+              <div>
+                <h3>Your recent updates</h3>
+                <p>Sales and returns recorded on your account.</p>
+              </div>
+            </div>
+            {myMovements.length ? (
+              <div className="list-stack">
+                {myMovements.slice(0, 5).map((movement) => {
+                  const product = items.find((item) => item.id === movement.productId);
+                  const delta = movementDelta(movement);
+                  return (
+                    <div className="low-row" key={movement.id}>
+                      <div>
+                        <strong>{product?.name || "Removed product"}</strong>
+                        <span>{movement.type} · {movement.note || "No note"}</span>
+                      </div>
+                      <b className={delta < 0 ? "warn-text" : ""}>{delta > 0 ? `+${delta}` : delta}</b>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="all-good"><ClipboardList size={24} /> <strong>Nothing recorded yet</strong> <span>Sales and returns you save will show up here.</span></div>
+            )}
+          </section>
+        )}
+        </>
+        )}
+
+        {activePage === "inventory" && (
+        <>
         <section className="page-title" id="inventory-section">
           <div>
             <div className="eyebrow"><Sparkles size={12} /> your beauty collection</div>
-            <h1>Product Inventory</h1>
-            <p className="muted">Manage every lipstick, palette, and beauty essential.</p>
+            <h1>{isAdmin ? "Product Inventory" : "Floor stock"}</h1>
+            <p className="muted">{isAdmin ? "Manage every lipstick, palette, and beauty essential." : "Search the shelf and record sales or returns. Catalogue changes stay with your manager."}</p>
           </div>
-          <button type="button" className="primary-btn" onClick={openAddProduct}><Plus size={16} /> Add product</button>
+          {isAdmin && <button type="button" className="primary-btn" onClick={openAddProduct}><Plus size={16} /> Add product</button>}
         </section>
 
-        <section className="inventory-summary">
+        <section className={`inventory-summary ${isAdmin ? "" : "cols-3"}`}>
           <div><span>Products listed</span><b>{items.length}</b></div>
           <div><span>Total units</span><b>{totalUnits}</b></div>
           <div><span>Low stock alerts</span><b className="warn-text">{lowStockItems.length}</b></div>
-          <div><span>Inventory value</span><b>{money(inventoryValue)}</b></div>
+          {isAdmin && <div><span>Inventory value</span><b>{money(inventoryValue)}</b></div>}
         </section>
 
         <section className="content-card inventory-card">
           <div className="card-head">
             <div>
               <h3>All products</h3>
-              <p>Your complete Ba'Oré cosmetics catalogue.</p>
+              <p>{isAdmin ? "Your complete Ba'Oré cosmetics catalogue." : "Quantities you can sell from today."}</p>
             </div>
             <span className="pill-chip">{filteredItems.length} products</span>
           </div>
@@ -364,11 +675,12 @@ export default function App() {
                     <td>{item.shade || "—"}</td>
                     <td><b>{item.quantity}</b> pcs</td>
                     <td className="price-cell">{money(item.price)}</td>
-                    <td><span className={`stock-pill ${item.quantity <= 5 ? "low" : "ok"}`}>{item.quantity <= 5 ? "Low stock" : "In stock"}</span></td>
+                    <td><span className={`stock-pill ${stockStatus(item.quantity).className}`}>{stockStatus(item.quantity).label}</span></td>
                     <td>
                       <div className="action-group">
-                        <button type="button" onClick={() => openEditProduct(item)}><Pencil size={15} /></button>
-                        <button type="button" className="danger" onClick={() => deleteProduct(item)}><Trash2 size={15} /></button>
+                        <button type="button" title={isAdmin ? "Update stock" : "Record sale or return"} onClick={() => openMovement(item)}><ClipboardList size={15} /></button>
+                        {isAdmin && <button type="button" title="Edit product" onClick={() => openEditProduct(item)}><Pencil size={15} /></button>}
+                        {isAdmin && <button type="button" className="danger" title="Delete product" onClick={() => deleteProduct(item)}><Trash2 size={15} /></button>}
                       </div>
                     </td>
                   </tr>
@@ -379,7 +691,7 @@ export default function App() {
               <div className="empty-state">
                 <Package size={26} />
                 <strong>No products found</strong>
-                <span>Try another search or add a new product.</span>
+                <span>{isAdmin ? "Try another search or add a new product." : "Try another search or shade."}</span>
               </div>
             )}
           </div>
@@ -389,6 +701,85 @@ export default function App() {
             <span><span className="live-dot" /> Inventory changes are saved automatically</span>
           </div>
         </section>
+        </>
+        )}
+
+        {activePage === "activity" && isAdmin && (
+          <section className="content-card inventory-card page-block">
+            <div className="card-head">
+              <div>
+                <div className="eyebrow"><Sparkles size={12} /> stock movements</div>
+                <h3>Who changed the shelf</h3>
+                <p>Restocks, sales, adjustments, and returns, tied to the person who recorded them.</p>
+              </div>
+              <span className="pill-chip">{movements.length} records</span>
+            </div>
+            {movements.length ? (
+              <div className="table-wrap">
+                <table className="inventory-table">
+                  <thead>
+                    <tr>
+                      <th>When</th>
+                      <th>Staff</th>
+                      <th>Product</th>
+                      <th>Type</th>
+                      <th>Change</th>
+                      <th>Note</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {movements.map((movement) => {
+                      const product = items.find((item) => item.id === movement.productId);
+                      const staff = users.find((user) => user.id === movement.userId);
+                      const delta = movementDelta(movement);
+                      return (
+                        <tr key={movement.id}>
+                          <td>{new Date(movement.createdAt).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</td>
+                          <td>{staff?.name || "Unknown"}</td>
+                          <td><strong>{product?.name || "Removed product"}</strong></td>
+                          <td><span className="category-tag">{movement.type}</span></td>
+                          <td className={delta < 0 ? "warn-text" : "price-cell"}>{delta > 0 ? `+${delta}` : delta}</td>
+                          <td>{movement.note || "—"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="empty-state">
+                <History size={26} />
+                <strong>No stock movements yet</strong>
+                <span>Sales, restocks, and adjustments will be listed here.</span>
+              </div>
+            )}
+          </section>
+        )}
+
+        {activePage === "team" && isAdmin && (
+          <section className="content-card inventory-card page-block">
+            <div className="card-head">
+              <div>
+                <div className="eyebrow"><Sparkles size={12} /> store accounts</div>
+                <h3>Team</h3>
+                <p>Add an account and choose Admin or User access.</p>
+              </div>
+              <button type="button" className="primary-btn" onClick={openAddAccount}><Plus size={16} /> Add account</button>
+            </div>
+            <div className="list-stack">
+              {users.map((user) => (
+                <div className="list-row" key={user.id}>
+                  <div className="admin-avatar">{user.name.charAt(0)}</div>
+                  <div className="row-copy">
+                    <strong>{user.name}</strong>
+                    <span>{user.email} · {user.username}</span>
+                  </div>
+                  <span className={user.role === "admin" ? "stock-pill ok" : "category-tag"}>{roleLabel(user.role)}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         <footer className="app-footer"><span>✦</span> Ba'Oré Cosmetics <span>·</span> Made for your beauty business</footer>
       </main>
@@ -423,6 +814,89 @@ export default function App() {
               <div className="form-actions">
                 <button type="button" className="secondary-btn" onClick={() => setProductModal(false)}>Cancel</button>
                 <button type="submit" className="primary-btn"><Sparkles size={15} /> {editId ? "Save changes" : "Add to inventory"}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {movementModal && (
+        <div className="modal-shade" onMouseDown={(e) => {
+          if (e.target === e.currentTarget) setMovementModal(null);
+        }}>
+          <div className="product-modal">
+            <div className="modal-head">
+              <div>
+                <div className="eyebrow"><ClipboardList size={12} /> {movementModal.sku}</div>
+                <h2>Update stock</h2>
+                <p className="muted">{movementModal.name} · {movementModal.quantity} on hand</p>
+              </div>
+              <button type="button" className="close-btn" onClick={() => setMovementModal(null)}><X size={18} /></button>
+            </div>
+            <form onSubmit={saveMovement} className="product-form">
+              <label>
+                Movement
+                <select value={movementForm.type} onChange={(e) => setMovementForm({ ...movementForm, type: e.target.value })}>
+                  {movementTypes.map((type) => <option key={type.id} value={type.id}>{type.label}</option>)}
+                </select>
+              </label>
+              {movementForm.type === "adjustment" && (
+                <label>
+                  Direction
+                  <select value={movementForm.direction} onChange={(e) => setMovementForm({ ...movementForm, direction: e.target.value })}>
+                    <option value="in">Add units</option>
+                    <option value="out">Remove units</option>
+                  </select>
+                </label>
+              )}
+              <label>
+                Units
+                <input type="number" min="1" step="1" value={movementForm.quantity} onChange={(e) => setMovementForm({ ...movementForm, quantity: e.target.value })} placeholder="1" />
+              </label>
+              <label>
+                Note
+                <input value={movementForm.note} onChange={(e) => setMovementForm({ ...movementForm, note: e.target.value })} placeholder={isAdmin ? "New shipment, count fix..." : "Counter sale, customer return..."} />
+              </label>
+              <div className="form-actions">
+                <button type="button" className="secondary-btn" onClick={() => setMovementModal(null)}>Cancel</button>
+                <button type="submit" className="primary-btn"><Sparkles size={15} /> Save movement</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {accountModal && (
+        <div className="modal-shade" onMouseDown={(e) => {
+          if (e.target === e.currentTarget) setAccountModal(false);
+        }}>
+          <div className="product-modal">
+            <div className="modal-head">
+              <div>
+                <div className="eyebrow"><Users size={12} /> Store access</div>
+                <h2>Add an account</h2>
+              </div>
+              <button type="button" className="close-btn" onClick={() => setAccountModal(false)}><X size={18} /></button>
+            </div>
+            <form onSubmit={saveAccount} className="product-form">
+              <label>Name<input value={accountForm.name} onChange={(e) => setAccountForm({ ...accountForm, name: e.target.value })} placeholder="Full name" /></label>
+              <div className="form-grid">
+                <label>Email<input type="email" value={accountForm.email} onChange={(e) => setAccountForm({ ...accountForm, email: e.target.value })} placeholder="name@baore.com" /></label>
+                <label>Username<input value={accountForm.username} onChange={(e) => setAccountForm({ ...accountForm, username: e.target.value })} placeholder="username" autoComplete="off" /></label>
+              </div>
+              <div className="form-grid">
+                <label>Password<input type="password" value={accountForm.password} onChange={(e) => setAccountForm({ ...accountForm, password: e.target.value })} placeholder="Password" autoComplete="new-password" /></label>
+                <label>
+                  Access
+                  <select value={accountForm.role} onChange={(e) => setAccountForm({ ...accountForm, role: e.target.value })}>
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </label>
+              </div>
+              <div className="form-actions">
+                <button type="button" className="secondary-btn" onClick={() => setAccountModal(false)}>Cancel</button>
+                <button type="submit" className="primary-btn"><Plus size={15} /> Add account</button>
               </div>
             </form>
           </div>
