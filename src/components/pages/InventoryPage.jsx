@@ -1,6 +1,25 @@
 import React from "react";
 import { ClipboardList, Package, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { catalogView } from "../../lib/products";
+import cloudNineBlushImage from "../../Product Images/Cloud Nine Blush.png";
+import dewyGlowFoundationImage from "../../Product Images/Dewy Glow Foundation.png";
+import lashMuseMascaraImage from "../../Product Images/Lash Muse Mascara.png";
+import petalShineLipGlossImage from "../../Product Images/Petal Shine Lip Gloss.png";
+import sculptDefineContourImage from "../../Product Images/Sculpt & Define Contour.png";
+import silkTouchSettingPowderImage from "../../Product Images/Silk Touch Setting Powder.png";
+import starlitEyeshadowPaletteImage from "../../Product Images/Starlit Eyeshadow Palette.png";
+import velvetMatteLipstickImage from "../../Product Images/Velvet Matte Lipstick.png";
+
+const productImages = {
+  "Cloud Nine Blush": cloudNineBlushImage,
+  "Dewy Glow Foundation": dewyGlowFoundationImage,
+  "Lash Muse Mascara": lashMuseMascaraImage,
+  "Petal Shine Lip Gloss": petalShineLipGlossImage,
+  "Sculpt & Define Contour": sculptDefineContourImage,
+  "Silk Touch Setting Powder": silkTouchSettingPowderImage,
+  "Starlit Eyeshadow Palette": starlitEyeshadowPaletteImage,
+  "Velvet Matte Lipstick": velvetMatteLipstickImage,
+};
 
 export function InventoryPage({ isAdmin, openAddProduct, items, productsStatus, productsError, productPending, movementPending, loadProducts, money, filteredItems, search, setSearch, filter, setFilter, categories, stockStatus, openMovement, openEditProduct, deleteProduct }) {
   const [stockFilter, setStockFilter] = React.useState("all");
@@ -9,10 +28,6 @@ export function InventoryPage({ isAdmin, openAddProduct, items, productsStatus, 
 
   return (
     <>
-      <section className="inventory-showcase" aria-label="Ba'Oré">
-        <h2 className="showcase-wordmark">BA'ORÉ</h2>
-      </section>
-
       <section className="content-card inventory-card">
         <div className="card-head">
           <div>
@@ -67,12 +82,19 @@ export function InventoryPage({ isAdmin, openAddProduct, items, productsStatus, 
               <div className="inventory-grid">
                 {visibleItems.map((item, index) => {
                   const status = stockStatus(item.quantity);
+                  const image = productImages[item.name];
                   return (
                     <article className="product-card" key={item.id}>
-                      <div className={`product-art product-art-${index % 4}`} aria-label="Product image unavailable" role="img">
-                        <span className="product-art-frame" />
-                        <span className="product-art-monogram">B</span>
-                        <span>IMAGE UNAVAILABLE</span>
+                      <div className={`product-art product-art-${index % 4}`} aria-label={image ? `${item.name} product image` : "Product image unavailable"} role="img">
+                        {image ? (
+                          <img className="product-art-image" src={image} alt={item.name} />
+                        ) : (
+                          <>
+                            <span className="product-art-frame" />
+                            <span className="product-art-monogram">B</span>
+                            <span>IMAGE UNAVAILABLE</span>
+                          </>
+                        )}
                       </div>
                       <div className="product-card-content">
                         <div className="product-card-heading">

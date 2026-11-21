@@ -1,19 +1,14 @@
 import React from "react";
-import { AlertTriangle, Boxes, ChevronRight, CircleDollarSign, ClipboardList, Droplets, Eye, Heart, Package, PackageX, Plus, RefreshCw, ShieldCheck, Sparkles } from "lucide-react";
+import { AlertTriangle, Boxes, ChevronRight, CircleDollarSign, ClipboardList, Droplets, Eye, Heart, Package, PackageX, RefreshCw, ShieldCheck, Sparkles } from "lucide-react";
 import { activityView, catalogView, movementProductLabel } from "../../lib/products";
 
-export function DashboardPage({ isAdmin, displayName, openAddProduct, items, productsStatus, productsError, movementsStatus, movementsError, loadProducts, totalUnits, lowStockItems, outOfStockCount, inventoryValue, money, stockStatus, goTo, myMovements, movementDelta, movementLabel }) {
+export function DashboardPage({ isAdmin, items, productsStatus, productsError, movementsStatus, movementsError, loadProducts, totalUnits, lowStockItems, outOfStockCount, inventoryValue, money, stockStatus, goTo, myMovements, movementDelta, movementLabel }) {
   const productsView = catalogView(productsStatus, items);
   const movementsView = activityView(movementsStatus, myMovements);
   return (
         <>
-        <section className="welcome-row">
-          <div>
-            <div className="eyebrow"><Sparkles size={12} /> {isAdmin ? "Your beauty business at a glance" : "Your shift at a glance"}</div>
-            <h1>Good day, {displayName}</h1>
-            <p className="muted">{isAdmin ? "Here’s the latest glow-up of your store inventory." : "Check the shelf, catch low stock, and record what leaves the counter."}</p>
-          </div>
-          {isAdmin && <button type="button" className="primary-btn" onClick={openAddProduct} disabled={productsStatus !== "ready"}><Plus size={16} /> Add product</button>}
+        <section className="inventory-showcase" aria-label="Ba'Oré">
+          <h2 className="showcase-wordmark">BA'ORÉ</h2>
         </section>
 
         {productsView === "loading" && (
