@@ -236,7 +236,7 @@ Role value stored in MongoDB remains `user`. The API does not rename it to `empl
 
 ## 8. API endpoint plan
 
-JSON only. Errors use the shape in section 11. List responses are arrays of the public fields. Nothing returns `passwordHash`.
+JSON only. Errors use the shape in section 11. List responses wrap the public records, `{ "products": [...] }` and `{ "movements": [...] }`. Nothing returns `passwordHash`.
 
 ### Auth
 
@@ -259,9 +259,9 @@ JSON only. Errors use the shape in section 11. List responses are arrays of the 
 
 | Method and path | Who | Responsibility |
 |---|---|---|
-| `GET /api/movements` | Admin | All movements, newest first, with snapshots. |
-| `GET /api/movements/mine` | Signed in | Movements whose `userId` is the caller. |
-| `POST /api/movements` | Signed in | Body: `productId`, `type`, `quantity`, optional `note`, and `direction` for adjustments. Admin may send `restock`, `sale`, `adjustment`, `return`. A user may send only `stock_in` and `stock_out`. The handler runs the transaction in section 9. |
+| `GET /api/movements` | Admin | All movements, newest first, with snapshots. Response `{ "movements": [...] }`. |
+| `GET /api/movements/mine` | Signed in | Movements whose `userId` is the caller. Same response shape. |
+| `POST /api/movements` | Signed in | Body: `productId`, `type`, `quantity`, optional `note`, and `direction` for adjustments. Admin may send `restock`, `sale`, `adjustment`, `return`. A user may send only `stock_in` and `stock_out`. Success is `201` `{ "movement": movement }`. The handler runs the transaction in section 9. |
 
 ### Users
 
@@ -277,7 +277,7 @@ Dashboard totals, inventory value, and the low-stock list can stay derived in th
 
 ## 9. Transaction strategy for product creation and stock movements
 
-Use one helper, `withTransaction(work)`, around every stock write:
+Use one helper around every stock write. Phase 3D.1 added it as `runTransaction` in `server/src/services/transaction.js`. It retries a transient transaction error a small fixed number of times, then returns 503, and it never repeats the work without a session. The steps are:
 
 1. `startSession()`
 2. `startTransaction()`
@@ -374,7 +374,7 @@ Zod parses every body and query before a handler talks to MongoDB.
 
 Shared rules:
 
-- Product quantity and movement quantity are nonnegative integers. Reject decimals and exponent strings. This is stricter than the current product form, which accepts `1.5` and `1e3`.
+- Product quantity and movement quantity are nonnegative integers. Reject decimals and exponent strings. This is stricter than the current product form, which accepts `1.5` and `1e3`. A movement quantity is stricter still: the StockMovement schema requires an integer greater than 0, so zero is rejected.
 - Price is at least 0 and has at most two decimal places.
 - Category is one of the six fixed names.
 - SKU is trimmed. The server stores it uppercase.

@@ -93,4 +93,4 @@ Delete is a hard delete of the product only (Decision D3). Stock movements stay,
 - The frontend still uses `localStorage` for products. Products created through this API do not appear in the UI yet.
 - There is no pagination. The catalogue is small.
 - Prices are stored as peso numbers, so binary floating point applies. Two-decimal validation limits the effect (see section 15 of `PHASE3_PLAN.md`).
-- Stock movement endpoints are Phase 3D.2.
+- Stock changes after creation go through the movement API in `MOVEMENTS.md`.

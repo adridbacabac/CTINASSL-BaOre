@@ -124,8 +124,8 @@ router.get("/me", requireAuth(env), currentUser);
 
 `requireRole()` and any value other than `admin` or `user`, including `employee`, throw when the route is registered. A role change in MongoDB applies on the next request. The existing cookie does not need to be reissued.
 
-The account routes under `/api/users` use `requireAuth(env)` and `requireAdmin`. The product routes under `/api/products` use `requireAuth(env)`, then `requireAdminOrUser` for reads and `requireAdmin` for writes. These middleware functions are not attached to stock movement routes yet.
+The account routes under `/api/users` use `requireAuth(env)` and `requireAdmin`. The product routes under `/api/products` use `requireAuth(env)`, then `requireAdminOrUser` for reads and `requireAdmin` for writes. The movement routes under `/api/movements` use `requireAuth(env)`, then `requireAdmin` for the full list and `requireAdminOrUser` for `/mine` and for recording a movement. The allowed movement type still depends on the database role.
 
 ## Not in this stage
 
-Stock movement routes are not implemented. Account management is described in `ACCOUNTS.md` and the product API in `PRODUCTS.md`. The React app does not call the product API yet. The React sign-in screen keeps its existing layout and now calls this API. The login limit is not shared across multiple server processes, and the API does not add a separate CSRF token beyond `SameSite=Lax`.
+Account management is described in `ACCOUNTS.md`, the product API in `PRODUCTS.md`, and stock movements in `MOVEMENTS.md`. The React app does not call the product or movement APIs yet. The React sign-in screen keeps its existing layout and now calls this API. The login limit is not shared across multiple server processes, and the API does not add a separate CSRF token beyond `SameSite=Lax`.
