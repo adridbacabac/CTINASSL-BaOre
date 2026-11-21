@@ -19,7 +19,7 @@ Current source layout:
 - `src/components/layout/Sidebar.jsx`, `Topbar.jsx`, `Toast.jsx`
 - `src/components/modals/ProductModal.jsx`, `MovementModal.jsx`, `AccountModal.jsx`
 - `src/components/pages/DashboardPage.jsx`, `InventoryPage.jsx`, `ActivityPage.jsx`, `TeamPage.jsx`
-- `src/lib/constants.js`, `format.js`, `stock.js`, `storage.js`
+- `src/lib/constants.js`, `format.js`, `stock.js`. `storage.js` was removed in Phase 3D.5.
 - `src/data/starterData.js`
 
 Routes that exist today:
@@ -35,7 +35,7 @@ Routes that exist today:
 
 Those checks use `currentUser.role === "admin"` in the browser. They are display rules, not a security boundary.
 
-Persistence is still the browser. `src/lib/storage.js` and `src/state/AppState.jsx` use four keys: `baore-items`, `baore-users`, `baore-movements`, and `baore-session`. The session value is the user id. Users are stored with a plaintext `password` field. Seed accounts are hardcoded in `src/data/starterData.js`. Decision D13 says this browser data will not be migrated.
+At the start of this plan, persistence was still the browser. `src/lib/storage.js` and `src/state/AppState.jsx` used four keys: `baore-items`, `baore-users`, `baore-movements`, and `baore-session`. The session value was the user id. Users were stored with a plaintext `password` field. Seed accounts were hardcoded in `src/data/starterData.js`. Decision D13 says this browser data will not be migrated. Phase 3D.5 removed `src/lib/storage.js`. The app now only deletes those four keys on startup if an older version left them behind. It does not read or write them.
 
 Behavior the current handlers actually implement:
 
@@ -408,7 +408,7 @@ The central error middleware is the only place that sends these responses. Handl
 - Bind the development listener to localhost.
 - MongoDB has no authentication today and is on localhost. Do not deploy this URI. Enable database users before the process is reachable from another machine.
 - `.env` stays untracked. Seed passwords exist only in the environment.
-- The frontend still contains plaintext seed passwords and still trusts `localStorage` until the cutover stage. That is unchanged by building the server. It remains a risk until the UI stops being the authority.
+- The frontend no longer stores products, movements, accounts, or tokens in browser storage. Authentication uses the httpOnly cookie. Phase 3D.5 removed the unused storage helper. Startup still deletes the four retired keys.
 - Generic login errors avoid telling an attacker which field was wrong.
 - ObjectIds are validated before queries so a bad id is 400, not a cast exception page.
 
@@ -449,7 +449,7 @@ Each stage is reviewable on its own. Do not start a stage until the previous one
 8. Add account create and delete through the admin-membership guard.
 9. Add `seed.js`. Products come from the eight catalogue rows, without the JSON `status` field. The two accounts are Admin One and User One. Passwords come only from `SEED_ADMIN_PASSWORD` and `SEED_EMPLOYEE_PASSWORD`.
 10. Add the transaction tests from section 13 against `baore_cosmetics_test`.
-11. Frontend cutover is a separate approval. It would replace `AppState` persistence with credentialed `fetch`, stop writing the four localStorage keys, and only then change Employee labeling, centavo formatting, and the Out of Stock card. That work is not part of standing up the server. Phase 3D.3 switched products and movements to the API. Phase 3D.4 reads dashboard totals from that catalogue and keeps each movement's product name and SKU as they were recorded. Accounts had already left `localStorage` in Phase 3C.4. Employee labeling, centavo display, and the separate Out of Stock card were not part of that switch.
+11. Frontend cutover is a separate approval. It would replace `AppState` persistence with credentialed `fetch`, stop writing the four localStorage keys, and only then change Employee labeling, centavo formatting, and the Out of Stock card. That work is not part of standing up the server. Phase 3D.3 switched products and movements to the API. Phase 3D.4 reads dashboard totals from that catalogue and keeps each movement's product name and SKU as they were recorded. Accounts had already left `localStorage` in Phase 3C.4. Phase 3D.5 removed `src/lib/storage.js`. The React app does not read or write `localStorage` or `sessionStorage` for products, movements, accounts, or the session. On startup it deletes leftover `baore-items`, `baore-movements`, `baore-users`, and `baore-session` values. The session stays in the httpOnly `baore_token` cookie. Employee labeling, centavo display, and the separate Out of Stock card were not part of that storage cleanup.
 
 ## 15. Potential risks, dependencies, and unresolved decisions
 
@@ -467,7 +467,7 @@ Documented here so they are not silently "fixed" in code.
 | `server/` location | D1 says `server/` in this repository. | Proposed path is inside `StockEase-React-Frontend/server/` with its own package. A git-root `server/` is the alternative. |
 | Account edit | No UI and no approved field list for editing an account after create. | No edit endpoint until a decision names the fields. Role change, when added, must use section 10. |
 | Password trimming | Current login does not trim passwords. | Server keeps that comparison until a decision says otherwise. |
-| Frontend secrets | `starterData.js` still contains plaintext seed passwords. | The seed script must not import that file. Removing the passwords from the frontend is part of cutover, not this plan. |
+| Frontend secrets | `starterData.js` was removed in Phase 3D.3. The frontend no longer ships seed passwords. | Seed passwords stay in the server environment only. |
 | MongoDB auth | Development server has authentication disabled. | Accepted for localhost only. Must change before any other exposure. |
 | Tests need `rs0` | An in-memory standalone node cannot run these transactions. | Tests use the existing local replica set and a separate database name. |
 | Write-conflict retries | A bounded retry is not a non-transactional fallback. | Retry the same transaction a small fixed number of times, then return 503. |

@@ -87,6 +87,8 @@ export function AppStateProvider({ children }) {
   const movementTypes = isAdmin ? adminMovementTypes : employeeMovementTypes;
 
   useEffect(() => {
+    // Earlier versions stored the catalogue, movements, accounts, and session id here.
+    // Delete any leftover copies. The app does not read or write these keys.
     localStorage.removeItem("baore-session");
     localStorage.removeItem("baore-users");
     localStorage.removeItem("baore-items");

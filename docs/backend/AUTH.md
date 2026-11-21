@@ -1,6 +1,6 @@
 # Authentication API
 
-The React app signs in through this API. The browser keeps the JWT in the httpOnly `baore_token` cookie and does not store it in `localStorage`. Products and stock movements come from this API as well. There is no public registration.
+The React app signs in through this API. The browser keeps the JWT in the httpOnly `baore_token` cookie. Page scripts do not store that token, products, stock movements, or accounts in `localStorage` or `sessionStorage`. There is no public registration.
 
 ## Endpoints
 
@@ -79,7 +79,7 @@ npm run dev
 
 The frontend command runs from `BaOre-Cosmetics-Admin/StockEase-React-Frontend`. Copy `.env.example` to `.env` only if the API should use a different origin. The default is `VITE_API_BASE_URL=http://127.0.0.1:5000`.
 
-On startup the app calls `GET /api/auth/me` once. A 401 shows the sign-in screen. A network failure shows a retry screen and does not treat the person as signed out. `baore-session` is no longer read or written.
+On startup the app calls `GET /api/auth/me` once. A 401 shows the sign-in screen. A network failure shows a retry screen and does not treat the person as signed out. The same startup deletes leftover `baore-session`, `baore-users`, `baore-items`, and `baore-movements` values from `localStorage`. Those keys are not read or written. `src/lib/storage.js` has been removed.
 
 ## Local checks
 

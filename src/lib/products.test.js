@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   createProductRequest,
   deleteProductRequest,
@@ -28,6 +30,15 @@ import {
   validateProductForm,
 } from "./products.js";
 import { catalogueTotals, stockStatus } from "./stock.js";
+
+function walkSources(dir) {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) return walkSources(path);
+    if (!/\.(js|jsx)$/.test(entry.name) || entry.name.endsWith(".test.js")) return [];
+    return [path];
+  });
+}
 
 function jsonResponse(status, payload) {
   return { ok: status >= 200 && status < 300, status, json: async () => payload };
@@ -215,32 +226,42 @@ describe("inventory form and state rules", () => {
     assert.equal(catalogView("ready", [lipstick]), "ready");
   });
 
-  test("frontend source no longer persists products or movements", () => {
-    const appState = readFileSync(new URL("../state/AppState.jsx", import.meta.url), "utf8");
-    const starterGone = (() => {
-      try {
-        readFileSync(new URL("../data/starterData.js", import.meta.url), "utf8");
-        return false;
-      } catch {
-        return true;
+  test("frontend source no longer persists products, movements, accounts, or tokens", () => {
+    const srcDir = join(dirname(fileURLToPath(import.meta.url)), "..");
+    const sources = walkSources(srcDir);
+    assert.equal(sources.some((file) => file.endsWith("storage.js")), false);
+    assert.equal(sources.some((file) => file.endsWith("starterData.js")), false);
+    const retired = ["baore-session", "baore-users", "baore-items", "baore-movements"];
+    const storageFiles = [];
+    for (const file of sources) {
+      const source = readFileSync(file, "utf8");
+      if (source.includes("localStorage") || source.includes("sessionStorage")) storageFiles.push(file);
+      assert.equal(source.includes("sessionStorage"), false, file);
+      for (const key of retired) {
+        assert.equal(source.includes(`localStorage.setItem("${key}"`), false, file);
+        assert.equal(source.includes(`localStorage.getItem("${key}"`), false, file);
       }
-    })();
-    assert.equal(starterGone, true);
-    assert.equal(appState.includes("baore-items"), true);
-    assert.equal(appState.includes('localStorage.setItem("baore-items"'), false);
-    assert.equal(appState.includes('localStorage.setItem("baore-movements"'), false);
-    assert.equal(appState.includes("localStorage.removeItem(\"baore-items\")"), true);
-    assert.equal(appState.includes("localStorage.removeItem(\"baore-movements\")"), true);
+    }
+    assert.deepEqual(storageFiles.map((file) => file.replaceAll("\\", "/")).filter((file) => file.endsWith("src/state/AppState.jsx")).length, 1);
+    assert.equal(storageFiles.length, 1);
+    const appState = readFileSync(join(srcDir, "state", "AppState.jsx"), "utf8");
+    for (const key of retired) {
+      assert.equal(appState.includes(`localStorage.removeItem("${key}")`), true);
+    }
+    assert.equal(appState.includes("localStorage.setItem"), false);
+    assert.equal(appState.includes("localStorage.getItem"), false);
     assert.equal(appState.includes("Date.now()"), false);
     assert.equal(appState.includes("openingStockNeedsRefresh"), true);
     assert.equal(appState.includes("catalogueTotals"), true);
-    const activity = readFileSync(new URL("../components/pages/ActivityPage.jsx", import.meta.url), "utf8");
-    const dashboard = readFileSync(new URL("../components/pages/DashboardPage.jsx", import.meta.url), "utf8");
+    const api = readFileSync(join(srcDir, "lib", "api.js"), "utf8");
+    assert.equal(api.includes("localStorage"), false);
+    assert.equal(api.includes("sessionStorage"), false);
+    assert.match(api, /rememberSession\(status, user = null\)/);
+    const activity = readFileSync(join(srcDir, "components", "pages", "ActivityPage.jsx"), "utf8");
+    const dashboard = readFileSync(join(srcDir, "components", "pages", "DashboardPage.jsx"), "utf8");
     assert.equal(activity.includes("movementProductLabel"), true);
     assert.equal(activity.includes("product?.name"), false);
-    assert.equal(activity.includes("localStorage"), false);
     assert.equal(dashboard.includes("product?.name"), false);
-    assert.equal(dashboard.includes("localStorage"), false);
   });
 
   test("derives dashboard totals and keeps movement snapshots after rename or delete", () => {
