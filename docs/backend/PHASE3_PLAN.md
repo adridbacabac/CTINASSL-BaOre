@@ -449,7 +449,7 @@ Each stage is reviewable on its own. Do not start a stage until the previous one
 8. Add account create and delete through the admin-membership guard.
 9. Add `seed.js`. Products come from the eight catalogue rows, without the JSON `status` field. The two accounts are Admin One and User One. Passwords come only from `SEED_ADMIN_PASSWORD` and `SEED_EMPLOYEE_PASSWORD`.
 10. Add the transaction tests from section 13 against `baore_cosmetics_test`.
-11. Frontend cutover is a separate approval. It would replace `AppState` persistence with credentialed `fetch`, stop writing the four localStorage keys, and only then change Employee labeling, centavo formatting, and the Out of Stock card. That work is not part of standing up the server.
+11. Frontend cutover is a separate approval. It would replace `AppState` persistence with credentialed `fetch`, stop writing the four localStorage keys, and only then change Employee labeling, centavo formatting, and the Out of Stock card. That work is not part of standing up the server. Phase 3D.3 switched products and movements to the API. Accounts had already left `localStorage` in Phase 3C.4. Employee labeling, centavo display, and the separate Out of Stock card were not part of that switch.
 
 ## 15. Potential risks, dependencies, and unresolved decisions
 

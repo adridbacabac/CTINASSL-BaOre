@@ -1,7 +1,7 @@
 import React from "react";
 import { Sparkles, X } from "lucide-react";
 
-export function ProductModal({ productModal, setProductModal, editId, form, setForm, categories, saveProduct }) {
+export function ProductModal({ productModal, setProductModal, editId, form, setForm, categories, saveProduct, productPending }) {
   return productModal && (
         <div className="modal-shade" onMouseDown={(e) => {
           if (e.target === e.currentTarget) setProductModal(false);
@@ -26,12 +26,12 @@ export function ProductModal({ productModal, setProductModal, editId, form, setF
                 <label>Brand<input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} placeholder="Ba'Oré" /></label>
               </div>
               <div className="form-grid">
-                <label>Quantity<input type="number" min="0" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} placeholder="0" /></label>
+                <label>Quantity<input type="number" min="0" value={form.quantity} disabled={Boolean(editId)} title={editId ? "Record a stock movement to change the quantity." : undefined} onChange={(e) => setForm({ ...form, quantity: e.target.value })} placeholder="0" /></label>
                 <label>Unit price (PHP)<input type="number" min="0" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="0.00" /></label>
               </div>
               <div className="form-actions">
-                <button type="button" className="secondary-btn" onClick={() => setProductModal(false)}>Cancel</button>
-                <button type="submit" className="primary-btn"><Sparkles size={15} /> {editId ? "Save changes" : "Add to inventory"}</button>
+                <button type="button" className="secondary-btn" onClick={() => setProductModal(false)} disabled={productPending}>Cancel</button>
+                <button type="submit" className="primary-btn" disabled={productPending}><Sparkles size={15} /> {editId ? "Save changes" : "Add to inventory"}</button>
               </div>
             </form>
           </div>

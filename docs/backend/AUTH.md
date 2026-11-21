@@ -1,6 +1,6 @@
 # Authentication API
 
-The React app signs in through this API. The browser keeps the JWT in the httpOnly `baore_token` cookie and does not store it in `localStorage`. Product and movement records still use their existing browser storage. There is no public registration.
+The React app signs in through this API. The browser keeps the JWT in the httpOnly `baore_token` cookie and does not store it in `localStorage`. Products and stock movements come from this API as well. There is no public registration.
 
 ## Endpoints
 
@@ -128,4 +128,4 @@ The account routes under `/api/users` use `requireAuth(env)` and `requireAdmin`.
 
 ## Not in this stage
 
-Account management is described in `ACCOUNTS.md`, the product API in `PRODUCTS.md`, and stock movements in `MOVEMENTS.md`. The React app does not call the product or movement APIs yet. The React sign-in screen keeps its existing layout and now calls this API. The login limit is not shared across multiple server processes, and the API does not add a separate CSRF token beyond `SameSite=Lax`.
+Account management is described in `ACCOUNTS.md`, the product API in `PRODUCTS.md`, and stock movements in `MOVEMENTS.md`. The React inventory screen calls the product and movement APIs. The React sign-in screen keeps its existing layout and now calls this API. The login limit is not shared across multiple server processes, and the API does not add a separate CSRF token beyond `SameSite=Lax`.

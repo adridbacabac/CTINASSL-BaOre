@@ -1,6 +1,6 @@
 # Stock Movement API
 
-Stock changes go through this API. Creating or editing a product cannot set quantity except for the opening quantity on create, which writes its own `Opening stock` movement. The React app still keeps movements in `localStorage` (`baore-movements`) and does not call these routes yet.
+Stock changes go through this API. Creating or editing a product cannot set quantity except for the opening quantity on create, which writes its own `Opening stock` movement. The React app records stock changes through these routes. `baore-movements` is no longer a data source.
 
 ## Access
 
@@ -96,7 +96,7 @@ Movements are not updated when a product is renamed, and they are not deleted wh
 
 ## Limitations
 
-- The React app does not call this API yet.
+- The inventory screen calls this API. It updates the shown quantity from `quantityAfter` and does not write the movement to browser storage.
 - There is no pagination and no filter by product.
 - `GET` responses do not include the account's name. The client can match `userId` to the account list.
 - A deleted product's id remains on the movement. Fetching that product returns `404`.

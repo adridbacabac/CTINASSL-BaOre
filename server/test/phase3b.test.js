@@ -381,14 +381,12 @@ describe("phase 3b models and seed", { concurrency: 1 }, () => {
     });
   });
 
-  test("keeps frontend starter data free of accounts and out of the seed source", () => {
+  test("keeps the seed source free of the retired frontend catalogue", () => {
     const root = new URL("../../", import.meta.url);
-    const starter = fs.readFileSync(new URL("src/data/starterData.js", root), "utf8");
+    assert.equal(fs.existsSync(new URL("src/data/starterData.js", root)), false);
     const seedSource = fs.readFileSync(new URL("../src/seed/seed.js", import.meta.url), "utf8")
       + fs.readFileSync(new URL("../src/seed/catalog.js", import.meta.url), "utf8");
     const serverSource = fs.readFileSync(new URL("../src/server.js", import.meta.url), "utf8");
-    assert.equal(/password/i.test(starter), false);
-    assert.equal(starter.includes("starterUsers"), false);
     assert.equal(seedSource.includes("starterData.js"), false);
     assert.equal(serverSource.includes("seed.js"), false);
     assert.equal(serverSource.includes("models/"), false);

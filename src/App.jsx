@@ -96,12 +96,14 @@ function AppShell() {
     form,
     setForm,
     saveProduct,
+    productPending,
     movementModal,
     setMovementModal,
     movementForm,
     setMovementForm,
     movementTypes,
     saveMovement,
+    movementPending,
     accountModal,
     setAccountModal,
     accountForm,
@@ -164,6 +166,7 @@ function AppShell() {
         setForm={setForm}
         categories={categories}
         saveProduct={saveProduct}
+        productPending={productPending}
       />
       <MovementModal
         movementModal={movementModal}
@@ -173,6 +176,7 @@ function AppShell() {
         movementTypes={movementTypes}
         isAdmin={isAdmin}
         saveMovement={saveMovement}
+        movementPending={movementPending}
       />
       <AccountModal
         accountModal={accountModal}
@@ -245,6 +249,11 @@ function InventoryRoute() {
     openMovement,
     openEditProduct,
     deleteProduct,
+    productsStatus,
+    productsError,
+    productPending,
+    movementPending,
+    loadProducts,
   } = useAppState();
 
   return (
@@ -266,16 +275,24 @@ function InventoryRoute() {
       openMovement={openMovement}
       openEditProduct={openEditProduct}
       deleteProduct={deleteProduct}
+      productsStatus={productsStatus}
+      productsError={productsError}
+      productPending={productPending}
+      movementPending={movementPending}
+      loadProducts={loadProducts}
     />
   );
 }
 
 function ActivityRoute() {
-  const { movements, items, accounts, currentUser } = useAppState();
+  const { movements, movementsStatus, movementsError, loadProducts, items, accounts, currentUser } = useAppState();
 
   return (
     <ActivityPage
       movements={movements}
+      movementsStatus={movementsStatus}
+      movementsError={movementsError}
+      loadMovements={loadProducts}
       items={items}
       accounts={accounts}
       currentUser={currentUser}

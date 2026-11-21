@@ -1,7 +1,8 @@
 import React from "react";
-import { ClipboardList, Package, Pencil, Plus, Search, Sparkles, Trash2 } from "lucide-react";
+import { ClipboardList, Package, Pencil, Plus, RefreshCw, Search, Sparkles, Trash2 } from "lucide-react";
+import { catalogView } from "../../lib/products";
 
-export function InventoryPage({ isAdmin, openAddProduct, items, totalUnits, lowStockItems, inventoryValue, money, filteredItems, search, setSearch, filter, setFilter, categories, stockStatus, openMovement, openEditProduct, deleteProduct }) {
+export function InventoryPage({ isAdmin, openAddProduct, items, productsStatus, productsError, productPending, movementPending, loadProducts, totalUnits, lowStockItems, inventoryValue, money, filteredItems, search, setSearch, filter, setFilter, categories, stockStatus, openMovement, openEditProduct, deleteProduct }) {
   return (
         <>
         <section className="page-title" id="inventory-section">
@@ -10,7 +11,7 @@ export function InventoryPage({ isAdmin, openAddProduct, items, totalUnits, lowS
             <h1>{isAdmin ? "Product Inventory" : "Floor stock"}</h1>
             <p className="muted">{isAdmin ? "Manage every lipstick, palette, and beauty essential." : "Search the shelf and record stock in or stock out. Catalogue changes stay with your manager."}</p>
           </div>
-          {isAdmin && <button type="button" className="primary-btn" onClick={openAddProduct}><Plus size={16} /> Add product</button>}
+          {isAdmin && <button type="button" className="primary-btn" onClick={openAddProduct} disabled={productsStatus !== "ready" || productPending}><Plus size={16} /> Add product</button>}
         </section>
 
         <section className={`inventory-summary ${isAdmin ? "" : "cols-3"}`}>
@@ -37,6 +38,23 @@ export function InventoryPage({ isAdmin, openAddProduct, items, totalUnits, lowS
             </select>
           </div>
 
+          {catalogView(productsStatus, items) === "loading" && (
+            <div className="empty-state">
+              <Package size={26} />
+              <strong>Loading products</strong>
+              <span>Fetching the catalogue from the store server.</span>
+            </div>
+          )}
+          {catalogView(productsStatus, items) === "error" && (
+            <div className="empty-state">
+              <Package size={26} />
+              <strong>Products could not be loaded</strong>
+              <span>{productsError}</span>
+              <button type="button" className="secondary-btn" onClick={loadProducts}><RefreshCw size={15} /> Try again</button>
+            </div>
+          )}
+          {catalogView(productsStatus, items) !== "loading" && catalogView(productsStatus, items) !== "error" && (
+          <>
           <div className="table-wrap">
             <table className="inventory-table">
               <thead>
@@ -71,9 +89,9 @@ export function InventoryPage({ isAdmin, openAddProduct, items, totalUnits, lowS
                     <td><span className={`stock-pill ${stockStatus(item.quantity).className}`}>{stockStatus(item.quantity).label}</span></td>
                     <td>
                       <div className="action-group">
-                        <button type="button" title={isAdmin ? "Update stock" : "Record stock in or stock out"} onClick={() => openMovement(item)}><ClipboardList size={15} /></button>
-                        {isAdmin && <button type="button" title="Edit product" onClick={() => openEditProduct(item)}><Pencil size={15} /></button>}
-                        {isAdmin && <button type="button" className="danger" title="Delete product" onClick={() => deleteProduct(item)}><Trash2 size={15} /></button>}
+                        <button type="button" title={isAdmin ? "Update stock" : "Record stock in or stock out"} disabled={productPending || movementPending} onClick={() => openMovement(item)}><ClipboardList size={15} /></button>
+                        {isAdmin && <button type="button" title="Edit product" disabled={productPending || movementPending} onClick={() => openEditProduct(item)}><Pencil size={15} /></button>}
+                        {isAdmin && <button type="button" className="danger" title="Delete product" disabled={productPending || movementPending} onClick={() => deleteProduct(item)}><Trash2 size={15} /></button>}
                       </div>
                     </td>
                   </tr>
@@ -83,16 +101,18 @@ export function InventoryPage({ isAdmin, openAddProduct, items, totalUnits, lowS
             {!filteredItems.length && (
               <div className="empty-state">
                 <Package size={26} />
-                <strong>No products found</strong>
-                <span>{isAdmin ? "Try another search or add a new product." : "Try another search or shade."}</span>
+                <strong>{items.length ? "No products found" : "No products yet"}</strong>
+                <span>{items.length ? (isAdmin ? "Try another search or add a new product." : "Try another search or shade.") : "The catalogue is empty."}</span>
               </div>
             )}
           </div>
 
           <div className="table-footer">
             <span>Showing <b>{filteredItems.length}</b> of <b>{items.length}</b> products</span>
-            <span><span className="live-dot" /> Inventory changes are saved automatically</span>
+            <span><span className="live-dot" /> Saved to the store server</span>
           </div>
+          </>
+          )}
         </section>
         </>
   );

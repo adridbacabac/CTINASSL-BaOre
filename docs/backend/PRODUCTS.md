@@ -1,6 +1,6 @@
 # Product API
 
-The server manages the product catalogue through this API. The React app still reads and writes products in `localStorage` (`baore-items`). Switching the frontend to this API is a later phase.
+The server manages the product catalogue through this API. The React inventory screen reads and writes products here. `baore-items` is no longer a data source.
 
 ## Access
 
@@ -90,7 +90,7 @@ Delete is a hard delete of the product only (Decision D3). Stock movements stay,
 
 ## Limitations
 
-- The frontend still uses `localStorage` for products. Products created through this API do not appear in the UI yet.
+- The inventory screen loads this list. It does not keep a second product database in the browser.
 - There is no pagination. The catalogue is small.
 - Prices are stored as peso numbers, so binary floating point applies. Two-decimal validation limits the effect (see section 15 of `PHASE3_PLAN.md`).
 - Stock changes after creation go through the movement API in `MOVEMENTS.md`.

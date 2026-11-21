@@ -1,7 +1,7 @@
 import React from "react";
 import { ClipboardList, Sparkles, X } from "lucide-react";
 
-export function MovementModal({ movementModal, setMovementModal, movementForm, setMovementForm, movementTypes, isAdmin, saveMovement }) {
+export function MovementModal({ movementModal, setMovementModal, movementForm, setMovementForm, movementTypes, isAdmin, saveMovement, movementPending }) {
   return movementModal && (
         <div className="modal-shade" onMouseDown={(e) => {
           if (e.target === e.currentTarget) setMovementModal(null);
@@ -40,8 +40,8 @@ export function MovementModal({ movementModal, setMovementModal, movementForm, s
                 <input value={movementForm.note} onChange={(e) => setMovementForm({ ...movementForm, note: e.target.value })} placeholder={isAdmin ? "New shipment, count fix..." : "Received stock, items leaving the shelf..."} />
               </label>
               <div className="form-actions">
-                <button type="button" className="secondary-btn" onClick={() => setMovementModal(null)}>Cancel</button>
-                <button type="submit" className="primary-btn"><Sparkles size={15} /> Save movement</button>
+                <button type="button" className="secondary-btn" onClick={() => setMovementModal(null)} disabled={movementPending}>Cancel</button>
+                <button type="submit" className="primary-btn" disabled={movementPending}><Sparkles size={15} /> Save movement</button>
               </div>
             </form>
           </div>
