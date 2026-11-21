@@ -149,6 +149,7 @@ function AppShell() {
         <Topbar
           setMobileOpen={setMobileOpen}
           pageTitle={pageTitle}
+          hideBreadcrumb={activePage === "inventory"}
           currentUser={currentUser}
           roleLabel={roleLabel}
         />
@@ -250,9 +251,6 @@ function InventoryRoute() {
     isAdmin,
     openAddProduct,
     items,
-    totalUnits,
-    lowStockItems,
-    inventoryValue,
     filteredItems,
     search,
     setSearch,
@@ -273,9 +271,6 @@ function InventoryRoute() {
       isAdmin={isAdmin}
       openAddProduct={openAddProduct}
       items={items}
-      totalUnits={totalUnits}
-      lowStockItems={lowStockItems}
-      inventoryValue={inventoryValue}
       money={money}
       filteredItems={filteredItems}
       search={search}
