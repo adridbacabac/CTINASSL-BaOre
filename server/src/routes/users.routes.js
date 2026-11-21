@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { AUTH_COOKIE_NAME, authCookieOptions, sessionVersionOf, signAuthToken } from "../auth/session.js";
-import { asyncHandler, HttpError } from "../http/errors.js";
+import { asyncHandler } from "../http/errors.js";
+import { parseBody, parseObjectId } from "../http/validation.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { requireAdmin } from "../middleware/requireRole.js";
 import { ROLES } from "../models/constants.js";
@@ -14,7 +15,6 @@ import {
   updateAccount,
 } from "../services/accounts.js";
 
-const OBJECT_ID = /^[a-f\d]{24}$/i;
 const USERNAME = /^[a-z0-9._-]{3,40}$/;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const BCRYPT_MAX_BYTES = 72;
@@ -61,20 +61,8 @@ const updateSchema = z.strictObject({
 
 const passwordResetSchema = z.strictObject({ password: passwordSchema });
 
-function parseBody(schema, body) {
-  const parsed = schema.safeParse(body ?? {});
-  if (parsed.success) return parsed.data;
-  const issue = parsed.error.issues[0];
-  if (issue.code === "unrecognized_keys" || issue.path.length === 0 && issue.code === "invalid_type") {
-    throw new HttpError(400, "Invalid request.");
-  }
-  throw new HttpError(400, issue.message);
-}
-
 function accountId(req) {
-  const { id } = req.params;
-  if (!OBJECT_ID.test(id)) throw new HttpError(400, "Invalid account id.");
-  return id.toLowerCase();
+  return parseObjectId(req.params.id, "Invalid account id.");
 }
 
 export function createUsersRouter(env) {

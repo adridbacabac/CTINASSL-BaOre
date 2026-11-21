@@ -252,7 +252,7 @@ JSON only. Errors use the shape in section 11. List responses are arrays of the 
 |---|---|---|
 | `GET /api/products` | Signed in | Query: `search`, `category`. Both roles can read the catalogue. Response includes derived `stockStatus`. |
 | `POST /api/products` | Admin | Creates a product. Quantity is a nonnegative integer. If quantity is greater than 0, the same transaction writes the `restock` movement with note `Opening stock`, `quantityBefore` 0, and `quantityAfter` equal to the created quantity. |
-| `PATCH /api/products/:id` | Admin | Updates name, category, SKU, brand, shade, and price. Ignores any `quantity` in the body. Decision D4. |
+| `PATCH /api/products/:id` | Admin | Updates name, category, SKU, brand, shade, and price. A body containing `quantity` is rejected with 400, so a client cannot believe a quantity change was saved. Decision D4. (Changed in Phase 3D.1; the original plan ignored the field.) |
 | `DELETE /api/products/:id` | Admin | Hard-deletes the product. Does not delete movements. Snapshots keep the history readable. |
 
 ### Movements
@@ -386,7 +386,7 @@ HTTP mapping:
 
 | Status | When |
 |---|---|
-| 400 | Zod failure, bad movement type, quantity in a product edit is ignored rather than applied. A client that sends a forbidden extra field still gets a valid edit of the allowed fields. |
+| 400 | Zod failure, bad movement type, or `quantity` in a product edit. Bodies are strict, so an unknown or forbidden field rejects the whole request instead of being dropped. |
 | 401 | Missing or invalid cookie. |
 | 403 | Signed in, wrong role, or removing the signed-in account. |
 | 404 | Missing product or user. |
@@ -424,7 +424,7 @@ Cases to cover first:
 - A user token receives 403 on product create, product delete, account create, and `GET /api/movements`.
 - Product create with quantity greater than 0 writes one product and one `Opening stock` movement. Forcing the movement insert to fail leaves no product.
 - Product create with quantity 0 writes no movement.
-- Product edit ignores quantity.
+- Product edit rejects quantity and leaves the stored quantity unchanged.
 - Two concurrent stock-outs of the last unit: one 200, one 409, final quantity 0, one movement.
 - A movement that would go below zero does not insert a movement.
 - Product delete removes the product and leaves the movement snapshots.
