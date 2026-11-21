@@ -9,6 +9,8 @@ const allowedEnvironments = new Set(["development", "production", "test"]);
 const placeholderJwtSecret = "replace-with-a-long-random-secret";
 const durationUnits = { s: 1, m: 60, h: 3600, d: 86400 };
 
+export const DEFAULT_BCRYPT_COST = 12;
+
 export const DEFAULT_LOGIN_RATE_LIMIT = {
   windowMs: 15 * 60 * 1000,
   limit: 10,
@@ -93,6 +95,14 @@ export function loadEnv(env = process.env) {
     errors.push("JWT_EXPIRES_IN must be a duration from 1m to 30d, such as 8h.");
   }
 
+  let bcryptCost = DEFAULT_BCRYPT_COST;
+  if (env.BCRYPT_COST !== undefined && String(env.BCRYPT_COST).length > 0) {
+    bcryptCost = Number(env.BCRYPT_COST);
+    if (!Number.isInteger(bcryptCost) || bcryptCost < 4 || bcryptCost > 31) {
+      errors.push("BCRYPT_COST must be an integer from 4 to 31.");
+    }
+  }
+
   if (errors.length > 0) {
     throw new Error(`Environment configuration is invalid:\n- ${errors.join("\n- ")}`);
   }
@@ -107,5 +117,6 @@ export function loadEnv(env = process.env) {
     jwtExpiresInSeconds,
     jwtMaxAgeMs: jwtExpiresInSeconds * 1000,
     loginRateLimit: DEFAULT_LOGIN_RATE_LIMIT,
+    bcryptCost,
   };
 }

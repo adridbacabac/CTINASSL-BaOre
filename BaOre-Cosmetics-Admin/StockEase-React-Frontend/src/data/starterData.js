@@ -8,8 +8,3 @@ export const starterItems = [
   { id: 7, name: "Starlit Eyeshadow Palette", category: "Eyes", sku: "EYE-007", quantity: 12, price: 899, brand: "Ba'Oré", shade: "Moonlight" },
   { id: 8, name: "Sculpt & Define Contour", category: "Cheeks", sku: "CHK-008", quantity: 7, price: 549, brand: "Ba'Oré", shade: "Toffee" },
 ];
-
-export const starterUsers = [
-  { id: "admin-1", name: "Admin One", email: "admin@baore.com", username: "admin", password: "baore-admin", role: "admin" },
-  { id: "user-1", name: "User One", email: "user@baore.com", username: "employee", password: "baore-staff", role: "user" },
-];

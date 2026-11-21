@@ -107,6 +107,8 @@ function AppShell() {
     accountForm,
     setAccountForm,
     saveAccount,
+    accountPending,
+    accounts,
     toast,
   } = useAppState();
 
@@ -178,6 +180,9 @@ function AppShell() {
         accountForm={accountForm}
         setAccountForm={setAccountForm}
         saveAccount={saveAccount}
+        accountPending={accountPending}
+        accounts={accounts}
+        currentUser={currentUser}
       />
       <Toast toast={toast} />
     </div>
@@ -266,13 +271,13 @@ function InventoryRoute() {
 }
 
 function ActivityRoute() {
-  const { movements, items, users, currentUser } = useAppState();
+  const { movements, items, accounts, currentUser } = useAppState();
 
   return (
     <ActivityPage
       movements={movements}
       items={items}
-      users={users}
+      accounts={accounts}
       currentUser={currentUser}
       movementDelta={movementDelta}
       movementLabel={movementLabel}
@@ -281,15 +286,31 @@ function ActivityRoute() {
 }
 
 function TeamRoute() {
-  const { openAddAccount, users, currentUser, removeAccount, sameAccount } = useAppState();
+  const {
+    openAddAccount,
+    accounts,
+    accountsStatus,
+    accountsError,
+    accountPending,
+    loadAccounts,
+    currentUser,
+    openEditAccount,
+    openResetPassword,
+    removeAccount,
+  } = useAppState();
 
   return (
     <TeamPage
       openAddAccount={openAddAccount}
-      users={users}
+      accounts={accounts}
+      accountsStatus={accountsStatus}
+      accountsError={accountsError}
+      accountPending={accountPending}
+      loadAccounts={loadAccounts}
       roleLabel={roleLabel}
       currentUser={currentUser}
-      sameAccount={sameAccount}
+      openEditAccount={openEditAccount}
+      openResetPassword={openResetPassword}
       removeAccount={removeAccount}
     />
   );

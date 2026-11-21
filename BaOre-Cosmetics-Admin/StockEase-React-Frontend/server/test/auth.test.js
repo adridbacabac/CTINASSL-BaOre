@@ -128,6 +128,10 @@ describe("authentication api", { concurrency: 1 }, () => {
     assert.equal(configured.jwtMaxAgeMs, 8 * 60 * 60 * 1000);
     assert.equal(configured.loginRateLimit.limit, 10);
     assert.equal(configured.jwtSecret.length >= 32, true);
+    assert.equal(configured.bcryptCost, 12);
+    assert.equal(loadEnv({ ...baseServerEnv, BCRYPT_COST: "10" }).bcryptCost, 10);
+    assert.throws(() => loadEnv({ ...baseServerEnv, BCRYPT_COST: "3" }), /BCRYPT_COST/);
+    assert.throws(() => loadEnv({ ...baseServerEnv, BCRYPT_COST: "12.5" }), /BCRYPT_COST/);
   });
 
   test("allows only the exact configured origin with credentials", async () => {

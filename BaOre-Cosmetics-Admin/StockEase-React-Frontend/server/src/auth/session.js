@@ -30,8 +30,13 @@ export function clearAuthCookieOptions(env) {
   };
 }
 
-export function signAuthToken(userId, env) {
-  return jwt.sign({}, env.jwtSecret, {
+export function sessionVersionOf(user) {
+  const version = user?.sessionVersion;
+  return Number.isInteger(version) && version >= 0 ? version : 0;
+}
+
+export function signAuthToken(userId, env, sessionVersion = 0) {
+  return jwt.sign({ sv: sessionVersion }, env.jwtSecret, {
     algorithm: "HS256",
     subject: String(userId),
     expiresIn: env.jwtExpiresInSeconds,
@@ -68,7 +73,12 @@ export function verifyAuthToken(token, env) {
   if (typeof payload.sub !== "string" || !OBJECT_ID.test(payload.sub)) {
     throw new HttpError(401, "Authentication required.");
   }
-  return payload.sub;
+  // Tokens issued before session versions existed carry no `sv` and count as version 0.
+  const sessionVersion = payload.sv === undefined ? 0 : payload.sv;
+  if (!Number.isInteger(sessionVersion) || sessionVersion < 0) {
+    throw new HttpError(401, "Authentication required.");
+  }
+  return { userId: payload.sub, sessionVersion };
 }
 
 export function publicUser(user) {

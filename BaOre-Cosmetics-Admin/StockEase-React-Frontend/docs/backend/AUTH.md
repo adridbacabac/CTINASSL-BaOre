@@ -44,7 +44,7 @@ The session is a signed JWT in the cookie `baore_token`. Page scripts cannot rea
 | `Path` | `/` |
 | `Max-Age` | The same lifetime as the JWT |
 
-The token uses HS256. Its subject is the user id, and its issuer and audience are `baore-inventory`. Logout clears the cookie with the same `HttpOnly`, `SameSite`, `Secure`, and `Path` values and `Max-Age=0`.
+The token uses HS256. Its subject is the user id, and its issuer and audience are `baore-inventory`. Its `sv` claim is the account's session version. An admin password reset increments that version, which ends the account's existing sessions. See `ACCOUNTS.md`. Logout clears the cookie with the same `HttpOnly`, `SameSite`, `Secure`, and `Path` values and `Max-Age=0`.
 
 CORS allows only `CLIENT_ORIGIN`, with credentials enabled. A wildcard origin is rejected.
 
@@ -60,6 +60,7 @@ Set these in `server/.env`. That file stays untracked.
 | `MONGODB_URI` | Yes | Must select `baore_cosmetics` and `replicaSet=rs0` for the running server. |
 | `PORT` | Yes | API port, for example `5000`. |
 | `NODE_ENV` | Yes | `development`, `test`, or `production`. |
+| `BCRYPT_COST` | No | bcrypt cost for account passwords, an integer from 4 to 31. Omitted means 12. |
 
 The server process validates this configuration before it connects. Seed passwords are not read by login.
 
@@ -123,8 +124,8 @@ router.get("/me", requireAuth(env), currentUser);
 
 `requireRole()` and any value other than `admin` or `user`, including `employee`, throw when the route is registered. A role change in MongoDB applies on the next request. The existing cookie does not need to be reissued.
 
-These middleware functions are not attached to product, stock, or account routes yet.
+The account routes under `/api/users` use `requireAuth(env)` and `requireAdmin`. These middleware functions are not attached to product or stock routes yet.
 
 ## Not in this stage
 
-Product, stock movement, and account-management routes are not implemented. The React sign-in screen keeps its existing layout and now calls this API. The login limit is not shared across multiple server processes, and the API does not add a separate CSRF token beyond `SameSite=Lax`.
+Product and stock movement routes are not implemented. Account management is described in `ACCOUNTS.md`. The React sign-in screen keeps its existing layout and now calls this API. The login limit is not shared across multiple server processes, and the API does not add a separate CSRF token beyond `SameSite=Lax`.

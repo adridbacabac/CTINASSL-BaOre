@@ -1,7 +1,8 @@
 import React from "react";
 import { History, Sparkles } from "lucide-react";
+import { movementStaff } from "../../lib/accounts";
 
-export function ActivityPage({ movements, items, users, currentUser, movementDelta, movementLabel }) {
+export function ActivityPage({ movements, items, accounts, currentUser, movementDelta, movementLabel }) {
   return (
           <section className="content-card inventory-card page-block">
             <div className="card-head">
@@ -28,8 +29,7 @@ export function ActivityPage({ movements, items, users, currentUser, movementDel
                   <tbody>
                     {movements.map((movement) => {
                       const product = items.find((item) => item.id === movement.productId);
-                      const staff = users.find((user) => user.id === movement.userId)
-                        || (currentUser && movement.userId === currentUser.id ? currentUser : null);
+                      const staff = movementStaff(movement, accounts, currentUser);
                       const delta = movementDelta(movement);
                       return (
                         <tr key={movement.id}>

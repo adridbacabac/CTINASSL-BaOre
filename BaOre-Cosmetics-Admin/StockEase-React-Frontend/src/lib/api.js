@@ -17,6 +17,12 @@ export function normalizeUser(user) {
   };
 }
 
+export function normalizeAccount(account) {
+  const user = normalizeUser(account);
+  if (!user) return null;
+  return { ...user, createdAt: typeof account.createdAt === "string" ? account.createdAt : null };
+}
+
 function safeMessage(status, payload, fallback) {
   if (status === 0) return "The store server could not be reached. Try again.";
   if (status === 429) return "Too many sign-in attempts. Wait a moment and try again.";
@@ -99,6 +105,53 @@ export async function logoutRequest(dependencies) {
       ? result.error
       : "The store server could not confirm sign-out. You are still signed in.",
   };
+}
+
+const UNEXPECTED_RESPONSE = "The store server sent an unexpected response.";
+
+function failedAccountRequest(result) {
+  return { ok: false, status: result.status, error: result.error };
+}
+
+function accountPath(id) {
+  return `/api/users/${encodeURIComponent(id)}`;
+}
+
+async function singleAccountRequest(path, options, dependencies) {
+  const result = await requestJson(path, options, dependencies);
+  if (!result.ok) return failedAccountRequest(result);
+  const account = normalizeAccount(result.payload?.user);
+  if (!account) return { ok: false, status: result.status, error: UNEXPECTED_RESPONSE };
+  return { ok: true, status: result.status, account };
+}
+
+export async function listAccountsRequest(dependencies) {
+  const result = await requestJson("/api/users", {}, dependencies);
+  if (!result.ok) return failedAccountRequest(result);
+  const raw = result.payload?.users;
+  const accounts = Array.isArray(raw) ? raw.map(normalizeAccount) : null;
+  if (!accounts || accounts.some((account) => !account)) {
+    return { ok: false, status: result.status, error: UNEXPECTED_RESPONSE };
+  }
+  return { ok: true, status: result.status, accounts };
+}
+
+export function createAccountRequest(input, dependencies) {
+  return singleAccountRequest("/api/users", { method: "POST", body: input }, dependencies);
+}
+
+export function updateAccountRequest(id, changes, dependencies) {
+  return singleAccountRequest(accountPath(id), { method: "PATCH", body: changes }, dependencies);
+}
+
+export function resetAccountPasswordRequest(id, password, dependencies) {
+  return singleAccountRequest(`${accountPath(id)}/password`, { method: "PATCH", body: { password } }, dependencies);
+}
+
+export async function deleteAccountRequest(id, dependencies) {
+  const result = await requestJson(accountPath(id), { method: "DELETE" }, dependencies);
+  if (!result.ok) return failedAccountRequest(result);
+  return { ok: true, status: result.status };
 }
 
 export async function currentUserRequest(dependencies) {

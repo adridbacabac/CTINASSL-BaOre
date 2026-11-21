@@ -1,8 +1,30 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { loginRequest, logoutRequest, rememberSession, restoreSession, retrySession } from "../lib/api";
-import { starterItems, starterUsers } from "../data/starterData";
+import {
+  createAccountRequest,
+  deleteAccountRequest,
+  listAccountsRequest,
+  loginRequest,
+  logoutRequest,
+  rememberSession,
+  resetAccountPasswordRequest,
+  restoreSession,
+  retrySession,
+  updateAccountRequest,
+} from "../lib/api";
+import {
+  accountFormFor,
+  createPayload,
+  deleteBlockReason,
+  movementBelongsTo,
+  removeAccountFrom,
+  roleLockReason,
+  updatePayload,
+  upsertAccount,
+  validateAccountForm,
+} from "../lib/accounts";
+import { starterItems } from "../data/starterData";
 import { LOW_STOCK, emptyProduct, emptyAccount, employeeMovementTypes, adminMovementTypes } from "../lib/constants";
 import { movementDelta } from "../lib/stock";
 import { readStorage } from "../lib/storage";
@@ -12,15 +34,10 @@ const AppStateContext = createContext(null);
 export function AppStateProvider({ children }) {
   const navigate = useNavigate();
   const [items, setItems] = useState(() => readStorage("baore-items", starterItems));
-  const [users, setUsers] = useState(() => {
-    const stored = readStorage("baore-users", starterUsers);
-    const list = Array.isArray(stored) ? [...stored] : [];
-    starterUsers.forEach((account) => {
-      const exists = list.some((user) => user.id === account.id || user.username.toLowerCase() === account.username.toLowerCase());
-      if (!exists) list.push(account);
-    });
-    return list;
-  });
+  const [accounts, setAccounts] = useState([]);
+  const [accountsStatus, setAccountsStatus] = useState("idle");
+  const [accountsError, setAccountsError] = useState("");
+  const [accountPending, setAccountPending] = useState(false);
   const [movements, setMovements] = useState(() => readStorage("baore-movements", []));
   const [authStatus, setAuthStatus] = useState("loading");
   const [currentUser, setCurrentUser] = useState(null);
@@ -36,7 +53,7 @@ export function AppStateProvider({ children }) {
   const [form, setForm] = useState(emptyProduct);
   const [movementModal, setMovementModal] = useState(null);
   const [movementForm, setMovementForm] = useState({ type: "sale", quantity: "", note: "", direction: "out" });
-  const [accountModal, setAccountModal] = useState(false);
+  const [accountModal, setAccountModal] = useState(null);
   const [accountForm, setAccountForm] = useState(emptyAccount);
   const [toast, setToast] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -50,15 +67,12 @@ export function AppStateProvider({ children }) {
   }, [items]);
 
   useEffect(() => {
-    localStorage.setItem("baore-users", JSON.stringify(users));
-  }, [users]);
-
-  useEffect(() => {
     localStorage.setItem("baore-movements", JSON.stringify(movements));
   }, [movements]);
 
   useEffect(() => {
     localStorage.removeItem("baore-session");
+    localStorage.removeItem("baore-users");
     let active = true;
     restoreSession().then((result) => {
       if (!active) return;
@@ -92,20 +106,18 @@ export function AppStateProvider({ children }) {
     setSessionError(result.message || "The store server could not be reached. Try again.");
   }
 
-  function sameAccount(user) {
-    if (!currentUser || !user) return false;
-    if (user.id === currentUser.id) return true;
-    return String(user.username || "").toLowerCase() === String(currentUser.username || "").toLowerCase();
-  }
+  useEffect(() => {
+    if (authStatus === "authenticated" && isAdmin) {
+      loadAccounts();
+      return;
+    }
+    setAccounts([]);
+    setAccountsStatus("idle");
+    setAccountsError("");
+  }, [authStatus, isAdmin, currentUser?.id]);
 
   const lowStockItems = items.filter((item) => Number(item.quantity) <= LOW_STOCK);
-  const ownMovementIds = new Set(currentUser ? [currentUser.id] : []);
-  if (currentUser) {
-    users.forEach((user) => {
-      if (sameAccount(user)) ownMovementIds.add(user.id);
-    });
-  }
-  const myMovements = movements.filter((movement) => ownMovementIds.has(movement.userId));
+  const myMovements = movements.filter((movement) => movementBelongsTo(movement, currentUser));
   const totalUnits = items.reduce((sum, item) => sum + Number(item.quantity), 0);
   const inventoryValue = items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.price), 0);
 
@@ -163,61 +175,144 @@ export function AppStateProvider({ children }) {
     setMobileOpen(false);
     setProductModal(false);
     setMovementModal(null);
-    setAccountModal(false);
+    setAccountModal(null);
     navigate("/login", { replace: true });
+  }
+
+  async function loadAccounts() {
+    setAccountsStatus("loading");
+    setAccountsError("");
+    const result = await listAccountsRequest();
+    if (!result.ok) {
+      if (await handleAccountRejection(result)) return;
+      setAccountsStatus("error");
+      setAccountsError(result.error);
+      return;
+    }
+    setAccounts(result.accounts);
+    setAccountsStatus("ready");
+  }
+
+  // Returns true when the session itself changed and the caller should stop.
+  async function handleAccountRejection(result) {
+    if (result.status === 401) {
+      rememberSession("unauthenticated", null);
+      applySession({ status: "unauthenticated", user: null });
+      setAccountModal(null);
+      setToast("Your session has ended. Sign in again.");
+      navigate("/login", { replace: true });
+      return true;
+    }
+    if (result.status === 403) {
+      const session = await retrySession();
+      applySession(session);
+      if (session.status === "authenticated" && session.user?.role !== "admin") {
+        setAccountModal(null);
+        setToast("Your account no longer has admin access.");
+        return true;
+      }
+    }
+    return false;
+  }
+
+  async function reportAccountFailure(result) {
+    if (await handleAccountRejection(result)) return;
+    setToast(result.error);
+    if (result.status === 404 || result.status === 409) loadAccounts();
   }
 
   function openAddAccount() {
     if (!isAdmin) return;
     setAccountForm(emptyAccount);
-    setAccountModal(true);
+    setAccountModal({ mode: "create", account: null });
   }
 
-  function saveAccount(event) {
-    event.preventDefault();
+  function openEditAccount(account) {
     if (!isAdmin) return;
-    const account = {
-      name: accountForm.name.trim(),
-      email: accountForm.email.trim(),
-      username: accountForm.username.trim(),
-      password: accountForm.password,
-      role: accountForm.role === "admin" ? "admin" : "user",
-    };
-
-    if (!account.name || !account.email || !account.username || !account.password) {
-      setToast("Please complete all account fields.");
-      return;
-    }
-
-    if (!account.email.includes("@")) {
-      setToast("Enter a valid email.");
-      return;
-    }
-
-    const duplicate = users.some((user) => user.username.toLowerCase() === account.username.toLowerCase() || user.email.toLowerCase() === account.email.toLowerCase());
-    if (duplicate) {
-      setToast("That username or email is already in use.");
-      return;
-    }
-
-    setUsers((prev) => [
-      ...prev,
-      { ...account, id: `user-${Date.now()}`, createdAt: new Date().toISOString() },
-    ]);
-    setAccountModal(false);
-    setToast("Account added.");
+    setAccountForm(accountFormFor(account));
+    setAccountModal({ mode: "edit", account });
   }
 
-  function removeAccount(user) {
-    if (!isAdmin || sameAccount(user)) return;
-    const adminsLeft = users.filter((account) => account.role === "admin" && account.id !== user.id).length;
-    if (user.role === "admin" && adminsLeft === 0) {
-      setToast("Keep at least one admin account.");
+  function openResetPassword(account) {
+    if (!isAdmin) return;
+    setAccountForm({ ...accountFormFor(account), password: "" });
+    setAccountModal({ mode: "password", account });
+  }
+
+  async function saveAccount(event) {
+    event.preventDefault();
+    if (!isAdmin || !accountModal || accountPending) return;
+    const { mode, account } = accountModal;
+    const problem = validateAccountForm(accountForm, mode);
+    if (problem) {
+      setToast(problem);
       return;
     }
-    if (!window.confirm(`Remove ${user.name}?`)) return;
-    setUsers((prev) => prev.filter((account) => account.id !== user.id));
-    setToast("Account removed.");
+
+    let request;
+    let success;
+    if (mode === "create") {
+      request = () => createAccountRequest(createPayload(accountForm));
+      success = "Account added.";
+    } else if (mode === "edit") {
+      if (accountForm.role !== account.role && roleLockReason(account, accounts, currentUser)) {
+        setToast(roleLockReason(account, accounts, currentUser));
+        return;
+      }
+      const changes = updatePayload(accountForm, account);
+      if (!changes) {
+        setAccountModal(null);
+        setToast("No changes to save.");
+        return;
+      }
+      request = () => updateAccountRequest(account.id, changes);
+      success = "Account updated.";
+    } else {
+      request = () => resetAccountPasswordRequest(account.id, accountForm.password);
+      success = `Password reset. ${account.name} was signed out of other sessions.`;
+    }
+
+    setAccountPending(true);
+    try {
+      const result = await request();
+      if (!result.ok) {
+        await reportAccountFailure(result);
+        return;
+      }
+      setAccounts((prev) => upsertAccount(prev, result.account));
+      if (result.account.id === currentUser?.id) {
+        const { createdAt, ...profile } = result.account;
+        setCurrentUser(profile);
+        rememberSession("authenticated", profile);
+      }
+      setAccountForm(emptyAccount);
+      setAccountModal(null);
+      setToast(success);
+    } finally {
+      setAccountPending(false);
+    }
+  }
+
+  async function removeAccount(account) {
+    if (!isAdmin || accountPending) return;
+    const blocked = deleteBlockReason(account, accounts, currentUser);
+    if (blocked) {
+      setToast(blocked);
+      return;
+    }
+    if (!window.confirm(`Remove ${account.name}?`)) return;
+    setAccountPending(true);
+    try {
+      const result = await deleteAccountRequest(account.id);
+      if (!result.ok) {
+        await reportAccountFailure(result);
+        return;
+      }
+      setAccounts((prev) => removeAccountFrom(prev, account.id));
+      setToast("Account removed.");
+    } finally {
+      setAccountPending(false);
+    }
   }
 
   function openAddProduct() {
@@ -329,7 +424,11 @@ export function AppStateProvider({ children }) {
 
   const value = {
     items,
-    users,
+    accounts,
+    accountsStatus,
+    accountsError,
+    accountPending,
+    loadAccounts,
     movements,
     username,
     setUsername,
@@ -361,7 +460,6 @@ export function AppStateProvider({ children }) {
     sessionError,
     loginPending,
     retrySessionCheck,
-    sameAccount,
     currentUser,
     isAdmin,
     displayName,
@@ -375,6 +473,8 @@ export function AppStateProvider({ children }) {
     handleLogin,
     handleLogout,
     openAddAccount,
+    openEditAccount,
+    openResetPassword,
     saveAccount,
     removeAccount,
     openAddProduct,

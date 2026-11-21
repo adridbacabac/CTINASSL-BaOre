@@ -4,6 +4,7 @@ import cors from "cors";
 import { errorHandler } from "./http/errors.js";
 import { createAuthRouter } from "./routes/auth.routes.js";
 import healthRoutes from "./routes/health.routes.js";
+import { createUsersRouter } from "./routes/users.routes.js";
 
 export function createApp(env) {
   const app = express();
@@ -24,6 +25,7 @@ export function createApp(env) {
   app.use(express.json());
   app.use("/api/health", healthRoutes);
   app.use("/api/auth", createAuthRouter(env));
+  app.use("/api/users", createUsersRouter(env));
 
   app.use((req, res) => {
     res.status(404).json({ error: "Not found" });

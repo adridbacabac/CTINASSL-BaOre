@@ -381,17 +381,14 @@ describe("phase 3b models and seed", { concurrency: 1 }, () => {
     });
   });
 
-  test("does not copy frontend starter passwords into the seed source", () => {
+  test("keeps frontend starter data free of accounts and out of the seed source", () => {
     const root = new URL("../../", import.meta.url);
     const starter = fs.readFileSync(new URL("src/data/starterData.js", root), "utf8");
     const seedSource = fs.readFileSync(new URL("../src/seed/seed.js", import.meta.url), "utf8")
       + fs.readFileSync(new URL("../src/seed/catalog.js", import.meta.url), "utf8");
     const serverSource = fs.readFileSync(new URL("../src/server.js", import.meta.url), "utf8");
-    const passwords = [...starter.matchAll(/password: "([^"]+)"/g)].map((match) => match[1]);
-    assert.equal(passwords.length, 2);
-    for (const password of passwords) {
-      assert.equal(seedSource.includes(password), false);
-    }
+    assert.equal(/password/i.test(starter), false);
+    assert.equal(starter.includes("starterUsers"), false);
     assert.equal(seedSource.includes("starterData.js"), false);
     assert.equal(serverSource.includes("seed.js"), false);
     assert.equal(serverSource.includes("models/"), false);

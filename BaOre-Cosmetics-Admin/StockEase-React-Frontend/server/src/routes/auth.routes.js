@@ -7,6 +7,7 @@ import {
   authCookieOptions,
   clearAuthCookieOptions,
   publicUser,
+  sessionVersionOf,
   signAuthToken,
 } from "../auth/session.js";
 import { asyncHandler, HttpError } from "../http/errors.js";
@@ -60,7 +61,7 @@ export function createAuthRouter(env) {
     const matches = await passwordMatches(password, user?.passwordHash || UNKNOWN_USER_HASH);
     if (!user || !matches) throw new HttpError(401, INVALID_LOGIN);
 
-    res.cookie(AUTH_COOKIE_NAME, signAuthToken(user._id, env), authCookieOptions(env));
+    res.cookie(AUTH_COOKIE_NAME, signAuthToken(user._id, env, sessionVersionOf(user)), authCookieOptions(env));
     res.json({ user: publicUser(user) });
   }));
 
