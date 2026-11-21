@@ -86,6 +86,23 @@ export function catalogView(status, products) {
   return "ready";
 }
 
+export function activityView(status, movements) {
+  if (status === "loading" || status === "idle") return "loading";
+  if (status === "error") return "error";
+  if (!movements.length) return "empty";
+  return "ready";
+}
+
+export function movementProductLabel(movement) {
+  const name = typeof movement?.productName === "string" ? movement.productName.trim() : "";
+  const sku = typeof movement?.sku === "string" ? movement.sku.trim() : "";
+  return { name: name || "Removed product", sku };
+}
+
+export function openingStockNeedsRefresh(product) {
+  return Number(product?.quantity) > 0;
+}
+
 export function validateProductForm(form, mode) {
   const name = form.name.trim();
   const sku = form.sku.trim();

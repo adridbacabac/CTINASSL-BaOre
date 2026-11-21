@@ -24,18 +24,19 @@ import {
   accountFormFor,
   createPayload,
   deleteBlockReason,
-  movementBelongsTo,
   removeAccountFrom,
   roleLockReason,
   updatePayload,
   upsertAccount,
   validateAccountForm,
+  visibleMovements,
 } from "../lib/accounts";
 import { LOW_STOCK, emptyProduct, emptyAccount, employeeMovementTypes, adminMovementTypes } from "../lib/constants";
 import {
   applyMovement,
   createProductPayload,
   movementPayload,
+  openingStockNeedsRefresh,
   removeProduct,
   sortProducts,
   updateProductPayload,
@@ -43,6 +44,7 @@ import {
   validateMovementForm,
   validateProductForm,
 } from "../lib/products";
+import { catalogueTotals } from "../lib/stock";
 
 const AppStateContext = createContext(null);
 
@@ -146,10 +148,11 @@ export function AppStateProvider({ children }) {
     loadCatalog(currentUser.role);
   }, [authStatus, currentUser?.id, currentUser?.role]);
 
+  const totals = catalogueTotals(items);
   const lowStockItems = items.filter((item) => Number(item.quantity) <= LOW_STOCK);
-  const myMovements = movements.filter((movement) => movementBelongsTo(movement, currentUser));
-  const totalUnits = items.reduce((sum, item) => sum + Number(item.quantity), 0);
-  const inventoryValue = items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.price), 0);
+  const myMovements = visibleMovements(movements, currentUser, "user");
+  const totalUnits = totals.totalUnits;
+  const inventoryValue = totals.inventoryValue;
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
@@ -375,6 +378,22 @@ export function AppStateProvider({ children }) {
     }
   }
 
+  async function refreshMovements(role) {
+    const requestId = catalogRequest.current;
+    const result = role === "admin" ? await listMovementsRequest() : await listMyMovementsRequest();
+    if (catalogRequest.current !== requestId) return "stale";
+    if (!result.ok) {
+      if (await handleSessionFailure(result)) return "session";
+      setMovementsStatus("error");
+      setMovementsError(result.error);
+      return "error";
+    }
+    setMovements(result.movements);
+    setMovementsStatus("ready");
+    setMovementsError("");
+    return "ready";
+  }
+
   async function handleSessionFailure(result) {
     if (result.status === 401) {
       rememberSession("unauthenticated", null);
@@ -455,6 +474,10 @@ export function AppStateProvider({ children }) {
         return;
       }
       setItems((prev) => upsertProduct(prev, result.product));
+      if (mode === "create" && openingStockNeedsRefresh(result.product)) {
+        const refreshed = await refreshMovements(currentUser.role);
+        if (refreshed === "session") return;
+      }
       setForm(emptyProduct);
       setEditId(null);
       setProductModal(false);

@@ -10,12 +10,16 @@ import {
   recordMovementRequest,
   updateProductRequest,
 } from "./api.js";
+import { visibleMovements } from "./accounts.js";
 import { adminMovementTypes, employeeMovementTypes } from "./constants.js";
 import {
+  activityView,
   applyMovement,
   catalogView,
   createProductPayload,
   movementPayload,
+  movementProductLabel,
+  openingStockNeedsRefresh,
   removeProduct,
   sortProducts,
   updateProductPayload,
@@ -23,6 +27,7 @@ import {
   validateMovementForm,
   validateProductForm,
 } from "./products.js";
+import { catalogueTotals, stockStatus } from "./stock.js";
 
 function jsonResponse(status, payload) {
   return { ok: status >= 200 && status < 300, status, json: async () => payload };
@@ -227,5 +232,67 @@ describe("inventory form and state rules", () => {
     assert.equal(appState.includes("localStorage.removeItem(\"baore-items\")"), true);
     assert.equal(appState.includes("localStorage.removeItem(\"baore-movements\")"), true);
     assert.equal(appState.includes("Date.now()"), false);
+    assert.equal(appState.includes("openingStockNeedsRefresh"), true);
+    assert.equal(appState.includes("catalogueTotals"), true);
+    const activity = readFileSync(new URL("../components/pages/ActivityPage.jsx", import.meta.url), "utf8");
+    const dashboard = readFileSync(new URL("../components/pages/DashboardPage.jsx", import.meta.url), "utf8");
+    assert.equal(activity.includes("movementProductLabel"), true);
+    assert.equal(activity.includes("product?.name"), false);
+    assert.equal(activity.includes("localStorage"), false);
+    assert.equal(dashboard.includes("product?.name"), false);
+    assert.equal(dashboard.includes("localStorage"), false);
+  });
+
+  test("derives dashboard totals and keeps movement snapshots after rename or delete", () => {
+    const soldOut = { ...lipstick, id: "sold", quantity: 0, price: 10 };
+    const low = { ...lipstick, id: "low", quantity: 5, price: 2.5 };
+    const totals = catalogueTotals([lipstick, soldOut, low]);
+    assert.equal(totals.productCount, 3);
+    assert.equal(totals.totalUnits, 33);
+    assert.equal(totals.inventoryValue, 28 * 399 + 12.5);
+    assert.equal(totals.lowStock, 1);
+    assert.equal(totals.outOfStock, 1);
+    assert.equal(totals.needsAttention, 2);
+    assert.equal(stockStatus(0).label, "Out of stock");
+    assert.equal(stockStatus(1).label, "Low stock");
+    assert.equal(stockStatus(5).label, "Low stock");
+    assert.equal(stockStatus(6).label, "In stock");
+
+    const movement = {
+      id: "m1",
+      productId: lipstick.id,
+      productName: lipstick.name,
+      sku: lipstick.sku,
+      userId: "employee-id",
+      type: "stock_out",
+      quantity: 2,
+      quantityAfter: 26,
+    };
+    const renamed = upsertProduct([lipstick], { ...lipstick, name: "Renamed Lipstick", sku: "LIP-999" });
+    assert.equal(renamed[0].name, "Renamed Lipstick");
+    assert.deepEqual(movementProductLabel(movement), { name: lipstick.name, sku: lipstick.sku });
+    assert.equal(removeProduct(renamed, lipstick.id).length, 0);
+    assert.equal(movementProductLabel(movement).name, lipstick.name);
+    assert.equal(movementProductLabel({ productName: "  ", sku: "" }).name, "Removed product");
+
+    const afterMovement = applyMovement([lipstick], movement);
+    assert.equal(catalogueTotals(afterMovement).totalUnits, 26);
+    assert.equal(catalogueTotals(afterMovement).inventoryValue, 26 * 399);
+    const repriced = upsertProduct(afterMovement, { ...afterMovement[0], price: 10 });
+    assert.equal(catalogueTotals(repriced).inventoryValue, 260);
+
+    const employee = { id: "employee-id", username: "employee", role: "user" };
+    const other = { ...movement, id: "m2", userId: "admin-id", productName: "Other shelf name" };
+    assert.deepEqual(visibleMovements([movement, other], employee, "user").map((item) => item.id), ["m1"]);
+    assert.equal(visibleMovements([movement, other], { id: "admin-id", role: "admin" }, "admin").length, 2);
+
+    assert.equal(activityView("idle", []), "loading");
+    assert.equal(activityView("loading", []), "loading");
+    assert.equal(activityView("error", [movement]), "error");
+    assert.equal(activityView("ready", []), "empty");
+    assert.equal(activityView("ready", [movement]), "ready");
+    assert.equal(openingStockNeedsRefresh({ quantity: 12 }), true);
+    assert.equal(openingStockNeedsRefresh({ quantity: 0 }), false);
+    assert.equal(catalogView("error", []), "error");
   });
 });

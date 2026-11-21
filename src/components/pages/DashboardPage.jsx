@@ -1,7 +1,10 @@
 import React from "react";
-import { AlertTriangle, Boxes, ChevronRight, CircleDollarSign, ClipboardList, Droplets, Eye, Heart, Package, Plus, ShieldCheck, Sparkles } from "lucide-react";
+import { AlertTriangle, Boxes, ChevronRight, CircleDollarSign, ClipboardList, Droplets, Eye, Heart, Package, Plus, RefreshCw, ShieldCheck, Sparkles } from "lucide-react";
+import { activityView, catalogView, movementProductLabel } from "../../lib/products";
 
-export function DashboardPage({ isAdmin, displayName, openAddProduct, items, totalUnits, lowStockItems, inventoryValue, money, stockStatus, goTo, myMovements, movementDelta, movementLabel }) {
+export function DashboardPage({ isAdmin, displayName, openAddProduct, items, productsStatus, productsError, movementsStatus, movementsError, loadProducts, totalUnits, lowStockItems, inventoryValue, money, stockStatus, goTo, myMovements, movementDelta, movementLabel }) {
+  const productsView = catalogView(productsStatus, items);
+  const movementsView = activityView(movementsStatus, myMovements);
   return (
         <>
         <section className="welcome-row">
@@ -10,9 +13,26 @@ export function DashboardPage({ isAdmin, displayName, openAddProduct, items, tot
             <h1>Good day, {displayName}</h1>
             <p className="muted">{isAdmin ? "Here’s the latest glow-up of your store inventory." : "Check the shelf, catch low stock, and record what leaves the counter."}</p>
           </div>
-          {isAdmin && <button type="button" className="primary-btn" onClick={openAddProduct}><Plus size={16} /> Add product</button>}
+          {isAdmin && <button type="button" className="primary-btn" onClick={openAddProduct} disabled={productsStatus !== "ready"}><Plus size={16} /> Add product</button>}
         </section>
 
+        {productsView === "loading" && (
+          <div className="empty-state">
+            <Package size={26} />
+            <strong>Loading the store</strong>
+            <span>Fetching products and stock movements from the store server.</span>
+          </div>
+        )}
+        {productsView === "error" && (
+          <div className="empty-state">
+            <Package size={26} />
+            <strong>The dashboard could not be loaded</strong>
+            <span>{productsError}</span>
+            <button type="button" className="secondary-btn" onClick={loadProducts}><RefreshCw size={15} /> Try again</button>
+          </div>
+        )}
+        {productsView !== "loading" && productsView !== "error" && (
+        <>
         <section className={`stats-grid ${isAdmin ? "" : "cols-3"}`}>
           <article className="stat-card">
             <div className="stat-label">Total products <span className="icon-box lavender"><Package size={18} /></span></div>
@@ -46,6 +66,7 @@ export function DashboardPage({ isAdmin, displayName, openAddProduct, items, tot
                 <p>A quick look at your beauty shelf.</p>
               </div>
             </div>
+            {items.length ? (
             <div className="list-stack">
               {items.slice(0, 5).map((item, index) => (
                 <div className="list-row" key={item.id}>
@@ -61,6 +82,9 @@ export function DashboardPage({ isAdmin, displayName, openAddProduct, items, tot
                 </div>
               ))}
             </div>
+            ) : (
+              <div className="all-good"><Package size={24} /> <strong>No products yet</strong> <span>The catalogue is empty.</span></div>
+            )}
           </div>
 
           <div className="content-card">
@@ -100,16 +124,25 @@ export function DashboardPage({ isAdmin, displayName, openAddProduct, items, tot
                 <p>Stock in and stock out recorded on your account.</p>
               </div>
             </div>
-            {myMovements.length ? (
+            {movementsView === "loading" ? (
+              <div className="all-good"><ClipboardList size={24} /> <strong>Loading your updates</strong> <span>Fetching the movements recorded on your account.</span></div>
+            ) : movementsView === "error" ? (
+              <div className="all-good">
+                <ClipboardList size={24} />
+                <strong>Your updates could not be loaded</strong>
+                <span>{movementsError}</span>
+                <button type="button" className="secondary-btn" onClick={loadProducts}><RefreshCw size={15} /> Try again</button>
+              </div>
+            ) : movementsView === "ready" ? (
               <div className="list-stack">
                 {myMovements.slice(0, 5).map((movement) => {
-                  const product = items.find((item) => item.id === movement.productId);
+                  const product = movementProductLabel(movement);
                   const delta = movementDelta(movement);
                   return (
                     <div className="low-row" key={movement.id}>
                       <div>
-                        <strong>{product?.name || "Removed product"}</strong>
-                        <span>{movementLabel(movement.type)} · {movement.note || "No note"}</span>
+                        <strong>{product.name}</strong>
+                        <span>{[product.sku, movementLabel(movement.type), movement.note || "No note"].filter(Boolean).join(" · ")}</span>
                       </div>
                       <b className={delta < 0 ? "warn-text" : ""}>{delta > 0 ? `+${delta}` : delta}</b>
                     </div>
@@ -120,6 +153,8 @@ export function DashboardPage({ isAdmin, displayName, openAddProduct, items, tot
               <div className="all-good"><ClipboardList size={24} /> <strong>Nothing recorded yet</strong> <span>Stock in and stock out you save will show up here.</span></div>
             )}
           </section>
+        )}
+        </>
         )}
         </>
   );

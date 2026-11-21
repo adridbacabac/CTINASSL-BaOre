@@ -99,6 +99,11 @@ export function movementBelongsTo(movement, user) {
   return LEGACY_MOVEMENT_USERNAMES[movement.userId] === user.username;
 }
 
+export function visibleMovements(movements, user, role) {
+  if (role === "admin") return movements;
+  return movements.filter((movement) => movementBelongsTo(movement, user));
+}
+
 export function movementStaff(movement, accounts, currentUser) {
   const people = currentUser ? [...accounts, currentUser] : accounts;
   return people.find((person) => movementBelongsTo(movement, person)) ?? null;

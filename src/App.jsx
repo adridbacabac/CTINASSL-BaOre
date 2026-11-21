@@ -207,6 +207,11 @@ function DashboardRoute() {
     displayName,
     openAddProduct,
     items,
+    productsStatus,
+    productsError,
+    movementsStatus,
+    movementsError,
+    loadProducts,
     totalUnits,
     lowStockItems,
     inventoryValue,
@@ -220,6 +225,11 @@ function DashboardRoute() {
       displayName={displayName}
       openAddProduct={openAddProduct}
       items={items}
+      productsStatus={productsStatus}
+      productsError={productsError}
+      movementsStatus={movementsStatus}
+      movementsError={movementsError}
+      loadProducts={loadProducts}
       totalUnits={totalUnits}
       lowStockItems={lowStockItems}
       inventoryValue={inventoryValue}
@@ -285,7 +295,7 @@ function InventoryRoute() {
 }
 
 function ActivityRoute() {
-  const { movements, movementsStatus, movementsError, loadProducts, items, accounts, currentUser } = useAppState();
+  const { movements, movementsStatus, movementsError, loadProducts, accounts, currentUser } = useAppState();
 
   return (
     <ActivityPage
@@ -293,7 +303,6 @@ function ActivityRoute() {
       movementsStatus={movementsStatus}
       movementsError={movementsError}
       loadMovements={loadProducts}
-      items={items}
       accounts={accounts}
       currentUser={currentUser}
       movementDelta={movementDelta}

@@ -1,8 +1,10 @@
 import React from "react";
 import { History, RefreshCw, Sparkles } from "lucide-react";
 import { movementStaff } from "../../lib/accounts";
+import { activityView, movementProductLabel } from "../../lib/products";
 
-export function ActivityPage({ movements, movementsStatus, movementsError, loadMovements, items, accounts, currentUser, movementDelta, movementLabel }) {
+export function ActivityPage({ movements, movementsStatus, movementsError, loadMovements, accounts, currentUser, movementDelta, movementLabel }) {
+  const view = activityView(movementsStatus, movements);
   return (
           <section className="content-card inventory-card page-block">
             <div className="card-head">
@@ -11,22 +13,22 @@ export function ActivityPage({ movements, movementsStatus, movementsError, loadM
                 <h3>Who changed the shelf</h3>
                 <p>Restocks, sales, adjustments, and returns, tied to the person who recorded them.</p>
               </div>
-              <span className="pill-chip">{movements.length} records</span>
+              {(view === "ready" || view === "empty") && <span className="pill-chip">{movements.length} records</span>}
             </div>
-            {movementsStatus === "loading" || movementsStatus === "idle" ? (
+            {view === "loading" ? (
               <div className="empty-state">
                 <History size={26} />
                 <strong>Loading activity</strong>
                 <span>Fetching stock movements from the store server.</span>
               </div>
-            ) : movementsStatus === "error" ? (
+            ) : view === "error" ? (
               <div className="empty-state">
                 <History size={26} />
                 <strong>Activity could not be loaded</strong>
                 <span>{movementsError}</span>
                 <button type="button" className="secondary-btn" onClick={loadMovements}><RefreshCw size={15} /> Try again</button>
               </div>
-            ) : movements.length ? (
+            ) : view === "ready" ? (
               <div className="table-wrap">
                 <table className="inventory-table">
                   <thead>
@@ -41,15 +43,21 @@ export function ActivityPage({ movements, movementsStatus, movementsError, loadM
                   </thead>
                   <tbody>
                     {movements.map((movement) => {
-                      const product = items.find((item) => item.id === movement.productId);
-                      const productName = product?.name || movement.productName || "Removed product";
+                      const product = movementProductLabel(movement);
                       const staff = movementStaff(movement, accounts, currentUser);
                       const delta = movementDelta(movement);
                       return (
                         <tr key={movement.id}>
                           <td>{new Date(movement.createdAt).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</td>
                           <td>{staff?.name || "Unknown"}</td>
-                          <td><strong>{productName}</strong></td>
+                          <td>
+                            <div className="product-cell">
+                              <div>
+                                <strong>{product.name}</strong>
+                                {product.sku ? <span>{product.sku}</span> : null}
+                              </div>
+                            </div>
+                          </td>
                           <td><span className="category-tag">{movementLabel(movement.type)}</span></td>
                           <td className={delta < 0 ? "warn-text" : "price-cell"}>{delta > 0 ? `+${delta}` : delta}</td>
                           <td>{movement.note || "—"}</td>
