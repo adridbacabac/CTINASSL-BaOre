@@ -125,13 +125,6 @@ function AppShell() {
         ]
       : []),
   ];
-  const pageTitle = {
-    dashboard: "Dashboard",
-    inventory: isAdmin ? "Inventory" : "Floor stock",
-    activity: "Activity",
-    team: "Team",
-  }[activePage];
-
   return (
     <div className="app-shell">
       <Sidebar
@@ -148,9 +141,6 @@ function AppShell() {
       <main className="main-area">
         <Topbar
           setMobileOpen={setMobileOpen}
-          pageTitle={pageTitle}
-          currentUser={currentUser}
-          roleLabel={roleLabel}
         />
 
         <Outlet />
@@ -204,8 +194,6 @@ function ProtectedLayout() {
 function DashboardRoute() {
   const {
     isAdmin,
-    displayName,
-    openAddProduct,
     items,
     productsStatus,
     productsError,
@@ -223,8 +211,6 @@ function DashboardRoute() {
   return (
     <DashboardPage
       isAdmin={isAdmin}
-      displayName={displayName}
-      openAddProduct={openAddProduct}
       items={items}
       productsStatus={productsStatus}
       productsError={productsError}
@@ -250,9 +236,6 @@ function InventoryRoute() {
     isAdmin,
     openAddProduct,
     items,
-    totalUnits,
-    lowStockItems,
-    inventoryValue,
     filteredItems,
     search,
     setSearch,
@@ -273,9 +256,6 @@ function InventoryRoute() {
       isAdmin={isAdmin}
       openAddProduct={openAddProduct}
       items={items}
-      totalUnits={totalUnits}
-      lowStockItems={lowStockItems}
-      inventoryValue={inventoryValue}
       money={money}
       filteredItems={filteredItems}
       search={search}

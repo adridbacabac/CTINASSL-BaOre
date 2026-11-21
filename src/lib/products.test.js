@@ -267,7 +267,9 @@ describe("inventory form and state rules", () => {
     assert.equal(appState.includes("lowStockProducts"), true);
     assert.equal(appState.includes("quantity) <= LOW_STOCK"), false);
     const inventory = readFileSync(join(srcDir, "components", "pages", "InventoryPage.jsx"), "utf8");
-    assert.match(inventory, /Low stock alerts[\s\S]*lowStockItems\.length/);
+    for (const summary of ["Products listed", "Total units", "Low stock alerts", "Inventory value"]) {
+      assert.equal(inventory.includes(summary), false);
+    }
   });
 
   test("derives dashboard totals and keeps movement snapshots after rename or delete", () => {
