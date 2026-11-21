@@ -31,7 +31,7 @@ import {
   validateAccountForm,
   visibleMovements,
 } from "../lib/accounts";
-import { LOW_STOCK, emptyProduct, emptyAccount, employeeMovementTypes, adminMovementTypes } from "../lib/constants";
+import { emptyProduct, emptyAccount, employeeMovementTypes, adminMovementTypes } from "../lib/constants";
 import {
   applyMovement,
   createProductPayload,
@@ -44,7 +44,7 @@ import {
   validateMovementForm,
   validateProductForm,
 } from "../lib/products";
-import { catalogueTotals } from "../lib/stock";
+import { catalogueTotals, lowStockProducts } from "../lib/stock";
 
 const AppStateContext = createContext(null);
 
@@ -151,7 +151,7 @@ export function AppStateProvider({ children }) {
   }, [authStatus, currentUser?.id, currentUser?.role]);
 
   const totals = catalogueTotals(items);
-  const lowStockItems = items.filter((item) => Number(item.quantity) <= LOW_STOCK);
+  const lowStockItems = lowStockProducts(items);
   const myMovements = visibleMovements(movements, currentUser, "user");
   const totalUnits = totals.totalUnits;
   const inventoryValue = totals.inventoryValue;
@@ -596,6 +596,7 @@ export function AppStateProvider({ children }) {
     displayName,
     movementTypes,
     lowStockItems,
+    outOfStockCount: totals.outOfStock,
     myMovements,
     totalUnits,
     inventoryValue,

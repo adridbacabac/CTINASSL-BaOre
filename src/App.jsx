@@ -214,6 +214,7 @@ function DashboardRoute() {
     loadProducts,
     totalUnits,
     lowStockItems,
+    outOfStockCount,
     inventoryValue,
     goTo,
     myMovements,
@@ -232,6 +233,7 @@ function DashboardRoute() {
       loadProducts={loadProducts}
       totalUnits={totalUnits}
       lowStockItems={lowStockItems}
+      outOfStockCount={outOfStockCount}
       inventoryValue={inventoryValue}
       money={money}
       stockStatus={stockStatus}

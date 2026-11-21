@@ -262,6 +262,7 @@ textarea { resize: vertical; }
 .icon-box.pink { background: #ffeaf0; color: #d2557d; }
 .icon-box.peach { background: #fff0df; color: #cf8a2c; }
 .icon-box.lilac { background: #eef1ff; color: #656dce; }
+.icon-box.rose { background: #ffe8ee; color: var(--danger); }
 .stat-value { font-size: clamp(24px, 2vw, 30px); font-weight: 700; margin-bottom: 8px; }
 .stat-foot { color: var(--muted); font-size: 12px; }
 .money-value { font-size: clamp(20px, 1.5vw, 26px); }
@@ -652,12 +653,13 @@ input:focus, select:focus, textarea:focus { border-color: rgba(138, 99, 216, 0.7
 .stock-pill.out { background: rgba(223, 93, 116, 0.12); color: var(--danger); }
 .page-block { margin-top: 28px; }
 .stats-grid.cols-3, .inventory-summary.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.stats-grid.cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .modal-head .muted { margin-top: 6px; }
 
 @media (max-width: 1100px) {
-  .stats-grid.cols-3, .inventory-summary.cols-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stats-grid.cols-3, .inventory-summary.cols-3, .stats-grid.cols-5 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 760px) {
-  .stats-grid.cols-3, .inventory-summary.cols-3, .demo-grid { grid-template-columns: 1fr; }
+  .stats-grid.cols-3, .stats-grid.cols-5, .inventory-summary.cols-3, .demo-grid { grid-template-columns: 1fr; }
 }

@@ -1,8 +1,8 @@
 import React from "react";
-import { AlertTriangle, Boxes, ChevronRight, CircleDollarSign, ClipboardList, Droplets, Eye, Heart, Package, Plus, RefreshCw, ShieldCheck, Sparkles } from "lucide-react";
+import { AlertTriangle, Boxes, ChevronRight, CircleDollarSign, ClipboardList, Droplets, Eye, Heart, Package, PackageX, Plus, RefreshCw, ShieldCheck, Sparkles } from "lucide-react";
 import { activityView, catalogView, movementProductLabel } from "../../lib/products";
 
-export function DashboardPage({ isAdmin, displayName, openAddProduct, items, productsStatus, productsError, movementsStatus, movementsError, loadProducts, totalUnits, lowStockItems, inventoryValue, money, stockStatus, goTo, myMovements, movementDelta, movementLabel }) {
+export function DashboardPage({ isAdmin, displayName, openAddProduct, items, productsStatus, productsError, movementsStatus, movementsError, loadProducts, totalUnits, lowStockItems, outOfStockCount, inventoryValue, money, stockStatus, goTo, myMovements, movementDelta, movementLabel }) {
   const productsView = catalogView(productsStatus, items);
   const movementsView = activityView(movementsStatus, myMovements);
   return (
@@ -33,7 +33,7 @@ export function DashboardPage({ isAdmin, displayName, openAddProduct, items, pro
         )}
         {productsView !== "loading" && productsView !== "error" && (
         <>
-        <section className={`stats-grid ${isAdmin ? "" : "cols-3"}`}>
+        <section className={`stats-grid ${isAdmin ? "cols-5" : "cols-3"}`}>
           <article className="stat-card">
             <div className="stat-label">Total products <span className="icon-box lavender"><Package size={18} /></span></div>
             <div className="stat-value">{items.length}</div>
@@ -49,6 +49,13 @@ export function DashboardPage({ isAdmin, displayName, openAddProduct, items, pro
             <div className="stat-value">{lowStockItems.length}</div>
             <div className="stat-foot">Products need a restock</div>
           </article>
+          {isAdmin && (
+          <article className="stat-card">
+            <div className="stat-label">Out of stock <span className="icon-box rose"><PackageX size={18} /></span></div>
+            <div className="stat-value">{outOfStockCount}</div>
+            <div className="stat-foot">None left on the shelf</div>
+          </article>
+          )}
           {isAdmin && (
           <article className="stat-card">
             <div className="stat-label">Inventory value <span className="icon-box lilac"><CircleDollarSign size={18} /></span></div>

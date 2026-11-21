@@ -1,10 +1,21 @@
 import { LOW_STOCK } from "./constants.js";
 
-export function stockStatus(quantity) {
+export function stockBand(quantity) {
   const qty = Number(quantity);
-  if (qty <= 0) return { label: "Out of stock", className: "out" };
-  if (qty <= LOW_STOCK) return { label: "Low stock", className: "low" };
+  if (!Number.isFinite(qty) || qty <= 0) return "out";
+  if (qty <= LOW_STOCK) return "low";
+  return "in";
+}
+
+export function stockStatus(quantity) {
+  const band = stockBand(quantity);
+  if (band === "out") return { label: "Out of stock", className: "out" };
+  if (band === "low") return { label: "Low stock", className: "low" };
   return { label: "In stock", className: "ok" };
+}
+
+export function lowStockProducts(products) {
+  return products.filter((product) => stockBand(product.quantity) === "low");
 }
 
 export function catalogueTotals(products) {
@@ -16,9 +27,10 @@ export function catalogueTotals(products) {
     totals.productCount += 1;
     totals.totalUnits += quantity;
     totals.inventoryValue += quantity * pesos;
-    if (quantity <= 0) totals.outOfStock += 1;
-    else if (quantity <= LOW_STOCK) totals.lowStock += 1;
-    if (quantity <= LOW_STOCK) totals.needsAttention += 1;
+    const band = stockBand(quantity);
+    if (band === "out") totals.outOfStock += 1;
+    else if (band === "low") totals.lowStock += 1;
+    else totals.inStock += 1;
     return totals;
   }, {
     productCount: 0,
@@ -26,7 +38,7 @@ export function catalogueTotals(products) {
     inventoryValue: 0,
     lowStock: 0,
     outOfStock: 0,
-    needsAttention: 0,
+    inStock: 0,
   });
 }
 

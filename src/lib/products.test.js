@@ -29,7 +29,7 @@ import {
   validateMovementForm,
   validateProductForm,
 } from "./products.js";
-import { catalogueTotals, stockStatus } from "./stock.js";
+import { catalogueTotals, lowStockProducts, roleLabel, stockStatus } from "./stock.js";
 
 function walkSources(dir) {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -262,6 +262,12 @@ describe("inventory form and state rules", () => {
     assert.equal(activity.includes("movementProductLabel"), true);
     assert.equal(activity.includes("product?.name"), false);
     assert.equal(dashboard.includes("product?.name"), false);
+    assert.equal(dashboard.includes("lowStockItems.length"), true);
+    assert.equal(dashboard.includes("isAdmin ? lowStockCount"), false);
+    assert.equal(appState.includes("lowStockProducts"), true);
+    assert.equal(appState.includes("quantity) <= LOW_STOCK"), false);
+    const inventory = readFileSync(join(srcDir, "components", "pages", "InventoryPage.jsx"), "utf8");
+    assert.match(inventory, /Low stock alerts[\s\S]*lowStockItems\.length/);
   });
 
   test("derives dashboard totals and keeps movement snapshots after rename or delete", () => {
@@ -273,7 +279,30 @@ describe("inventory form and state rules", () => {
     assert.equal(totals.inventoryValue, 28 * 399 + 12.5);
     assert.equal(totals.lowStock, 1);
     assert.equal(totals.outOfStock, 1);
-    assert.equal(totals.needsAttention, 2);
+    assert.equal(totals.inStock, 1);
+    const shelf = [
+      soldOut,
+      { ...lipstick, id: "one", quantity: 1 },
+      low,
+      { ...lipstick, id: "six", quantity: 6 },
+    ];
+    assert.deepEqual(lowStockProducts(shelf).map((product) => product.quantity), [1, 5]);
+    assert.equal(catalogueTotals(shelf).lowStock, lowStockProducts(shelf).length);
+    assert.equal(catalogueTotals(shelf).outOfStock, 1);
+    assert.equal(catalogueTotals(shelf).inStock, 1);
+    assert.equal(stockStatus(0).label, "Out of stock");
+    assert.notEqual(stockStatus(0).label, "Low stock");
+    assert.deepEqual(catalogueTotals([]), {
+      productCount: 0,
+      totalUnits: 0,
+      inventoryValue: 0,
+      lowStock: 0,
+      outOfStock: 0,
+      inStock: 0,
+    });
+    assert.equal(catalogView("ready", []), "empty");
+    assert.equal(roleLabel("user"), "Employee");
+    assert.equal(roleLabel("admin"), "Admin");
     assert.equal(stockStatus(0).label, "Out of stock");
     assert.equal(stockStatus(1).label, "Low stock");
     assert.equal(stockStatus(5).label, "Low stock");

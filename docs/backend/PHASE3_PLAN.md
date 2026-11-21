@@ -47,9 +47,9 @@ Behavior the current handlers actually implement:
 - Deleting a product removes the product only. Movements remain, and the screen shows "Removed product" when the product lookup fails.
 - Creating an account requires `@` in the email. Username and email uniqueness are case-insensitive. Password is not trimmed. There is no account-edit screen.
 - The signed-in account cannot remove itself. The last-admin toast exists, but the only admin has no remove button, so that toast is not reachable from the current UI.
-- `roleLabel()` returns "User" for every non-admin. Decision D6 says the UI label is Employee. The stored role value is already `user`.
-- `money()` formats PHP with `maximumFractionDigits: 0`. A price of `399.5` displays as ₱400. Decision D9 requires centavo display.
-- Low stock on the dashboard list is `quantity <= 5`, so zero is included in that list. `stockStatus()` separately labels `<= 0` as Out of stock and `1` through `5` as Low stock. Decision D11 asks for a separate Out of Stock card.
+- `roleLabel()` returns "Employee" for every non-admin and "Admin" for `admin`. Decision D6. The stored role value remains `user`. Phase 3E confirmed this label on the sidebar, top bar, team list, and account form.
+- `money()` formats PHP with two decimal places. A price of `399.5` displays as ₱399.50. Decision D9. Phase 3E applied this in the shared formatter. Storage is unchanged.
+- `stockStatus()` labels quantity `0` as Out of stock, `1` through `5` as Low stock, and above `5` as In stock. The admin dashboard has a separate Out of Stock card. Low stock counts on both dashboards, the "Needs a little love" list, and the inventory alert count include only quantities `1` through `5`. Decision D11. The employee dashboard does not have an Out of Stock card.
 - `docs/baore-seed-data.json` repeats the eight products and adds a `status` field the UI does not store.
 - `docs/mongodb-setup.md` describes `products`, `stockMovements`, and `users`, unique indexes, and `passwordHash`. It does not yet include `createdAt` / `updatedAt` on products, or movement `quantityBefore`, `quantityAfter`, `productName`, and `sku`. `docs/mern-project-plan.md` is older and still describes a categories collection and a configurable threshold. Those older statements are not the Phase 3 spec.
 
@@ -449,7 +449,7 @@ Each stage is reviewable on its own. Do not start a stage until the previous one
 8. Add account create and delete through the admin-membership guard.
 9. Add `seed.js`. Products come from the eight catalogue rows, without the JSON `status` field. The two accounts are Admin One and User One. Passwords come only from `SEED_ADMIN_PASSWORD` and `SEED_EMPLOYEE_PASSWORD`.
 10. Add the transaction tests from section 13 against `baore_cosmetics_test`.
-11. Frontend cutover is a separate approval. It would replace `AppState` persistence with credentialed `fetch`, stop writing the four localStorage keys, and only then change Employee labeling, centavo formatting, and the Out of Stock card. That work is not part of standing up the server. Phase 3D.3 switched products and movements to the API. Phase 3D.4 reads dashboard totals from that catalogue and keeps each movement's product name and SKU as they were recorded. Accounts had already left `localStorage` in Phase 3C.4. Phase 3D.5 removed `src/lib/storage.js`. The React app does not read or write `localStorage` or `sessionStorage` for products, movements, accounts, or the session. On startup it deletes leftover `baore-items`, `baore-movements`, `baore-users`, and `baore-session` values. The session stays in the httpOnly `baore_token` cookie. Employee labeling, centavo display, and the separate Out of Stock card were not part of that storage cleanup.
+11. Frontend cutover is a separate approval. It would replace `AppState` persistence with credentialed `fetch`, stop writing the four localStorage keys, and only then change Employee labeling, centavo formatting, and the Out of Stock card. That work is not part of standing up the server. Phase 3D.3 switched products and movements to the API. Phase 3D.4 reads dashboard totals from that catalogue and keeps each movement's product name and SKU as they were recorded. Accounts had already left `localStorage` in Phase 3C.4. Phase 3D.5 removed `src/lib/storage.js`. The React app does not read or write `localStorage` or `sessionStorage` for products, movements, accounts, or the session. On startup it deletes leftover `baore-items`, `baore-movements`, `baore-users`, and `baore-session` values. The session stays in the httpOnly `baore_token` cookie. Phase 3E completed the three remaining display items: the Employee label for role `user`, peso amounts with two decimal places, and a separate admin Out of Stock card. The stored role remains `user`. Price storage is unchanged.
 
 ## 15. Potential risks, dependencies, and unresolved decisions
 
@@ -459,9 +459,9 @@ Documented here so they are not silently "fixed" in code.
 |---|---|---|
 | Older MongoDB doc | `docs/mongodb-setup.md` omits D5 snapshot and timestamp fields. | Follow `docs/DECISIONS.md`. Leave the setup doc unchanged until a docs pass is requested. |
 | Stale project plan | `docs/mern-project-plan.md` still describes a categories collection and a configurable threshold. | No categories collection. Threshold stays 5. |
-| Money display | Frontend `money()` rounds to whole pesos. D9 requires centavos. | API stores two-decimal pesos. Display stays unchanged until stage 11. |
-| Out of Stock card | D11 asks for a separate card. The dashboard list still treats `quantity <= 5` as the low-stock group, while `stockStatus()` already labels 0 as out of stock. | API returns derived status. The card is stage 11. |
-| Employee label | D6. `roleLabel()` still returns "User". | Database value stays `user`. Label change is stage 11. |
+| Money display | D9. Phase 3E formats displayed pesos with two decimal places. | API storage stays a peso number. The formatter does not change calculations. |
+| Out of Stock card | D11. The admin dashboard has a card for quantity `0`. Low stock counts and the attention list use quantities `1` through `5` for both roles. | API status is unchanged. The employee dashboard has no Out of Stock card. |
+| Employee label | D6. Phase 3E keeps `roleLabel("user")` as "Employee" and `roleLabel("admin")` as "Admin". | Database value stays `user`. Authorization still checks `admin`. |
 | Product quantity | The current form accepts decimals. The approved server rule is nonnegative whole numbers. | API rejects non-integers. The form is not changed in this plan. |
 | Price storage | Seed data and the setup doc use a peso number. Centavo integers avoid float error. | Keep a peso `price` field unless review chooses centavo storage. |
 | `server/` location | D1 says `server/` in this repository. | Proposed path is inside `StockEase-React-Frontend/server/` with its own package. A git-root `server/` is the alternative. |
